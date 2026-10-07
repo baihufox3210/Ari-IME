@@ -575,6 +575,9 @@ void test_common_mixed_literals() {
     check_eq(pe("https://ari-ime.test/v1.0.0"),
              "https://ari-ime.test/v1.0.0",
              "URL with version path stays literal");
+    check_eq(pe("https://ari-ime.test/su3"),
+             "https://ari-ime.test/su3",
+             "URL path resembling slash plus zhuyin stays literal");
     check_eq(pe("Ari-IME-1.0.0"), "Ari-IME-1.0.0",
              "hyphenated version string stays literal");
     check_eq(pe("README.md"), "README.md", "filename stays literal");
@@ -602,6 +605,37 @@ void test_local_context_prediction_examples() {
     punctuation.type("hk4g4");
     check_eq(punctuation.preedit(), "(測試",
              "opening parenthesis keeps following Zhuyin convertible");
+
+    Sim slash;
+    slash.type("/su3");
+    check_eq(slash.preedit(), "/你",
+             "leading slash stays punctuation before an independent syllable");
+
+    Sim slashMedial;
+    slashMedial.type("/u3");
+    const std::string medialResult =
+        direct_conversion(ari_ime::KeyboardLayout::Default, "u3");
+    if (!medialResult.empty()) {
+        check_eq(slashMedial.preedit(), "/" + medialResult,
+                 "leading slash also separates a medial-led syllable");
+    }
+
+    Sim slashAfterChinese;
+    slashAfterChinese.type("su3/su3");
+    check_eq(slashAfterChinese.preedit(), "你/你",
+             "slash separates adjacent Chinese syllables");
+
+    Sim slashAfterEnglish;
+    slashAfterEnglish.type("abc/su3");
+    check_eq(slashAfterEnglish.preedit(), "abc/你",
+             "slash separates English text from an independent syllable");
+
+    Sim slashAfterEnglishMedial;
+    slashAfterEnglishMedial.type("abc/u3");
+    if (!medialResult.empty()) {
+        check_eq(slashAfterEnglishMedial.preedit(), "abc/" + medialResult,
+                 "slash after English separates a medial-led syllable");
+    }
 
     // Keep the whole Chinese run in libchewing so its local phrase model can
     // rank homophones using context instead of choosing each glyph alone.

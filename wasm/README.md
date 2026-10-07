@@ -42,7 +42,7 @@ because the Emscripten build cannot execute its dictionary generator directly:
 
 ```sh
 cd wasm
-git clone --depth 1 --branch v0.8.5 https://github.com/chewing/libchewing.git /tmp/libchewing-v0.8.5
+git clone --depth 1 --branch v0.8.5 https://codeberg.org/chewing/libchewing.git /tmp/libchewing-v0.8.5
 LIBCHEWING_SOURCE_DIR=/tmp/libchewing-v0.8.5 npm run build:libchewing
 ```
 

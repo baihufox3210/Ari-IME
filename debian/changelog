@@ -1,3 +1,12 @@
+fcitx5-ari-ime (2.7.1) unstable; urgency=medium
+
+  * Keep a leading slash literal when the following keys independently form
+    a Bopomofo syllable, including after Chinese or English text.
+  * Preserve punctuation keys inside valid syllables and technical literals.
+  * Update the WebAssembly package and generated runtime to 2.7.1.
+
+ -- Kaiyasi <zengcode0315@gmail.com>  Wed, 07 Oct 2026 19:10:59 +0000
+
 fcitx5-ari-ime (2.7.0) unstable; urgency=medium
 
   * Apply AutoLearn and sensitive-field policy to libchewing's own learner.

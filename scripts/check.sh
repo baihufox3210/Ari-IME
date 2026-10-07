@@ -19,8 +19,12 @@ run() {
 }
 
 local_tests_available() {
-    [[ -f test/test_buffer.cpp &&
-       -f test/test_layout.cpp &&
+    [[ -f test/test_buffer.cpp ]]
+}
+
+full_local_tests_available() {
+    local_tests_available &&
+    [[ -f test/test_layout.cpp &&
        -f test/test_user_data.cpp &&
        -f test/test_enable_input_method.sh &&
        -f test/test_dict_tool.sh ]]
@@ -278,7 +282,7 @@ fuzz_checks() {
 }
 
 coverage_checks() {
-    if ! local_tests_available; then
+    if ! full_local_tests_available; then
         printf 'Skipping coverage checks: maintainer-only test sources are absent\n'
         return
     fi

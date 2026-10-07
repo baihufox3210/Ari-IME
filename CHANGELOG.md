@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.7.1 - 2026-10-08
+
+- Treat a leading punctuation-looking final key such as `/` as a literal
+  separator when the following keys independently form a Chinese syllable.
+  `/su3` now produces `/你`, including after English or Chinese text.
+- Keep symbol keys inside valid syllables (such as `u/6`) and preserve
+  punctuation-heavy technical text such as URLs.
+- Rebuild the WebAssembly runtime from the same input core and update
+  `@ari-ime/wasm` to 2.7.1.
+- Run the published buffer regression test in clean-checkout release and
+  sanitizer CI jobs; include a versioned WebAssembly archive in GitHub Releases.
+
 ## 2.7.0 - 2026-10-02
 
 - Apply the AutoLearn setting and sensitive-field policy to libchewing's

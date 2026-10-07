@@ -607,7 +607,17 @@ bool isTechnicalLiteralSuffix(const std::string &text) {
            text == "}" || text == "[" || text == "]" || text == "|";
 }
 
+bool isAsciiWord(const std::string &s) {
+    return !s.empty() &&
+           std::all_of(s.begin(), s.end(),
+                       [](char c) { return (c >= 'A' && c <= 'Z') ||
+                                           (c >= 'a' && c <= 'z'); });
+}
+
 bool canPeelEnglishBody(const std::string &prefix, const std::string &body) {
+    if (!body.empty() && ari_ime::isSymbolLikeZhuyinKey(body.front())) {
+        return false; // symbol-led readings use their own technical-text guard
+    }
     int nonToneSlots = 0;
     bool hasInitial = false;
     bool hasMedial = false;
@@ -628,6 +638,15 @@ bool canPeelEnglishBody(const std::string &prefix, const std::string &body) {
     // peel digit/punctuation-only bodies from English.
     if (!hasAsciiLetter(body)) {
         return false;
+    }
+    if (!prefix.empty() &&
+        ari_ime::isSymbolLikeZhuyinKey(prefix.back()) &&
+        ari_ime::zhuyinSlot(prefix.back()) == 2) {
+        // A final-key punctuation mark is a boundary when the following keys
+        // make their own syllable. A one-key medial after '/' is valid here too.
+        // Keep punctuation-heavy technical literals (URLs, paths) literal.
+        return prefix.size() == 1 ||
+               isAsciiWord(prefix.substr(0, prefix.size() - 1));
     }
     if (!hasInitial && nonToneSlots < 2) {
         // A single medial can be a legitimate English-word-friendly peel
@@ -652,13 +671,6 @@ bool canPeelSymbolLedBody(const std::string &body) {
     return std::any_of(body.begin() + 1, body.end(), [](char c) {
         return ari_ime::zhuyinSlot(c) >= 0;
     });
-}
-
-bool isAsciiWord(const std::string &s) {
-    return !s.empty() &&
-           std::all_of(s.begin(), s.end(),
-                       [](char c) { return (c >= 'A' && c <= 'Z') ||
-                                           (c >= 'a' && c <= 'z'); });
 }
 
 bool canPeelSymbolLedFromEnglish(const std::string &prefix,
@@ -1280,6 +1292,31 @@ KeyResult Buffer::handleChar(char c, bool literal) {
     const std::string body = ari_ime::canonicalKeys(syl_);
     const bool needsBody =
         ari_ime::needsBodyBeforeToneCompletion(ari_ime::currentKeyboardLayout());
+    // A punctuation-looking key at the start may be a real 注音 symbol, but it
+    // may also delimit a complete syllable that follows it. Prefer the latter
+    // only when the suffix independently converts. Keep symbol-led syllables
+    // such as ".3-3" intact when the suffix cannot stand on its own, and keep
+    // punctuation inside a syllable ("u/6") available to 注音.
+    if (syl_.size() > 1 &&
+        ari_ime::isSymbolLikeZhuyinKey(syl_.front()) &&
+        ari_ime::zhuyinSlot(syl_.front()) == 2) {
+        const std::string suffix = syl_.substr(1);
+        const std::string canonicalSuffix = ari_ime::canonicalKeys(suffix);
+        if (ari_ime::isValidSyllable(suffix, /*allowTone=*/true) &&
+            (!needsBody || ari_ime::hasMedialOrFinal(canonicalSuffix)) &&
+            syllableConverts(canonicalSuffix)) {
+            const char punctuation = syl_.front();
+            freezeRun();
+            cells_.push_back({false, std::string(1, punctuation), {}});
+            zhuyin_.feedSequence(canonicalSuffix);
+            runReadings_ = {canonicalSuffix};
+            runTyped_ = {suffix};
+            zhuyin_.promoteUserPhrases();
+            moveAutoCommit();
+            syl_.clear();
+            return {true, false, {}, true};
+        }
+    }
     if ((!needsBody || ari_ime::hasMedialOrFinal(body)) &&
         syllableConverts(body)) {
         integrateSyllable(body, syl_);
@@ -1623,22 +1660,19 @@ bool Buffer::tryPeelEnglish(char tone, KeyResult &out) {
         }
     }
 
-    // A punctuation-looking key may have been kept literal at a boundary because
-    // it was ambiguous on its own. If the trailing literal tail later forms a
-    // clear symbol-led zhuyin body, recover that longer suffix first instead of
-    // peeling only the shortest alphabetic tail.
-    for (std::size_t k = 0; k < buf.size(); ++k) {
-        if (tryCandidate(k, /*symbolLed=*/true)) {
+    // Prefer the shortest trailing syllable (largest k) that actually forms a
+    // character. This leaves a leading punctuation mark literal when the keys
+    // after it independently convert ("abc/su3" -> "abc/你"), while keeping
+    // punctuation inside a syllable ("aceru/6" -> "acer螢").
+    for (std::size_t k = buf.size(); k-- > 0;) {
+        if (tryCandidate(k, /*symbolLed=*/false)) {
             return true;
         }
     }
-
-    // Prefer the shortest trailing syllable (largest k) that actually forms a
-    // character: steal as few letters as possible from the English word. This
-    // keeps brand names like "acer" intact ("aceru/6" -> acer + 螢) without
-    // relying on a dictionary, which would miss non-words.
-    for (std::size_t k = buf.size(); k-- > 0;) {
-        if (tryCandidate(k, /*symbolLed=*/false)) {
+    // If no independent suffix converted, a symbol-led reading may still be
+    // valid; preserve that route for layouts with punctuation-looking keys.
+    for (std::size_t k = 0; k < buf.size(); ++k) {
+        if (tryCandidate(k, /*symbolLed=*/true)) {
             return true;
         }
     }
@@ -1716,6 +1750,13 @@ bool Buffer::tryPeelEnglishTone1(KeyResult &out) {
         }
     }
 
+    for (std::size_t k = buf.size(); k-- > 0;) {
+        if (k > 0 && ari_ime::isSymbolLikeZhuyinKey(buf[k - 1]) &&
+            ari_ime::zhuyinSlot(buf[k - 1]) == 2 &&
+            tryCandidate(k, /*symbolLed=*/false)) {
+            return true;
+        }
+    }
     for (std::size_t k = 0; k < buf.size(); ++k) {
         if (tryCandidate(k, /*symbolLed=*/true)) {
             return true;
