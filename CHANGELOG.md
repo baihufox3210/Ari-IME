@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.7.2 - 2026-10-08
+
+- Keep single-character learning in libchewing without promoting it as an Ari
+  phrase preference, so choices such as 「值」 do not override contextual
+  conversion of words such as 「智慧」.
+- Preserve multi-character phrase preferences and add regression coverage for
+  contextual conversion and the Shift+Delete candidate-forgetting path.
+- Rebuild the WebAssembly runtime from the same input core and update
+  `@ari-ime/wasm` to 2.7.2.
+
 ## 2.7.1 - 2026-10-08
 
 - Treat a leading punctuation-looking final key such as `/` as a literal
