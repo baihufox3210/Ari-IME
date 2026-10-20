@@ -29,6 +29,23 @@ ime.dispose();
 keysym. Modifiers can be a bit mask or `{shift, ctrl, alt, meta}`. `paste` and
 `reconvert` are explicit host operations; no UI is created automatically.
 
+## Try the browser demo
+
+The repository includes a local interactive demo. From the repository root,
+start a static server:
+
+```sh
+python3 -m http.server 8000
+```
+
+Open <http://localhost:8000/wasm/demo/>. The demo loads the checked-in
+WebAssembly runtime and dictionary from this repository, runs locally in the
+browser, and keeps its temporary learning state in memory for that tab only.
+It does not send typed text to a server.
+
+For a deployed copy, publish the repository's `wasm/demo/` and `wasm/dist/`
+directories together under the same origin.
+
 ## Build
 
 The checked-in package build uses an Emscripten-built static libchewing. The

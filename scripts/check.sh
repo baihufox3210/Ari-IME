@@ -207,6 +207,7 @@ release_checks() {
     run test -x "$install_prefix/bin/ari-ime-enable"
     run test -x "$install_prefix/bin/ari-ime-reset-data"
     run test -x "$install_prefix/bin/ari-ime-dict"
+    run test -x "$install_prefix/bin/ari-ime-convert-vchewing-dictionary"
     run bash -n PKGBUILD
     run bash -n scripts/enable-input-method.sh
     run bash -n scripts/install-ubuntu.sh

@@ -7,6 +7,9 @@ keys only become Chinese once they form a complete, toned 注音 syllable
 freely mix English and Chinese in any order (e.g. `acer螢幕`) and is only sent to
 the application when you press **Enter**.
 
+> 臺灣使用者可先看[快速上手指南](docs/quickstart-zh-TW.md)：安裝後輸入
+> `su3` 得到「你」，再試試在同一段文字中混打英文與注音。
+
 Built on [libchewing](https://github.com/chewing/libchewing) for conversion,
 phrasing and per-user learning.
 
@@ -127,7 +130,7 @@ phrasing and per-user learning.
 
 The WebAssembly package ships its generated `.js`, `.wasm` and dictionary data
 artifacts for direct npm use. See [`wasm/README.md`](wasm/README.md) for the
-Emscripten build inputs and the native/API smoke tests.
+Emscripten build inputs, browser demo and native/API smoke tests.
 
 ## Keys
 
@@ -429,6 +432,19 @@ Settings module does not render tooltips yet).
 
 ## Tests
 
+To compare candidate coverage across distributions or libchewing versions, run
+the bundled 大千 benchmark with an isolated temporary learning directory:
+
+```sh
+scripts/candidate-benchmark.sh /path/to/ari-ime-dict
+```
+
+The report includes the binary and libchewing version and checks whether each
+target character appears on the first candidate page at the initial cursor. It
+does not touch the active user dictionary. Add reproducible cases to
+[`docs/candidate-benchmark.tsv`](docs/candidate-benchmark.tsv); candidate order
+is reported for diagnosis and is not a cross-distribution release guarantee.
+
 ```sh
 ctest --test-dir build
 ```
@@ -628,14 +644,20 @@ ari-ime-dict backup
 
 Imports are merges, are idempotent, and create a timestamped backup before any
 existing libchewing data is changed. The portable text file contains a phrase
-and libchewing's canonical Unicode Bopomofo reading separated by a tab; use a
-reading such as `ㄋㄧˇ`, not layout-specific keys such as `su3`. The portable
+and libchewing's canonical Unicode Bopomofo reading separated by a tab, with
+one space between syllables (for example `妳好<TAB>ㄋㄧˇ ㄏㄠˇ`); use Bopomofo,
+not layout-specific keys such as `su3`. The portable
 format transfers personal phrase mappings, while exact frequency state can
 still vary with the installed libchewing version; `backup` preserves the raw
 files for same-engine recovery. `candidates KEYS` prints the current engine
 result and candidate page for a raw 大千 key sequence such as `su3` or `hk4g4`,
 which makes candidate-order reports reproducible without changing the active
 Fcitx5 session.
+
+To migrate a VChewing/XiaoMai Bopomofo TSV dictionary, use the installed
+`ari-ime-convert-vchewing-dictionary` command to validate and convert it before
+merging it with `ari-ime-dict import`. Pinyin readings are reported as
+unsupported instead of being guessed, and source weights are not transferred.
 
 The script backs up the current `userdict.dat` to a timestamped `.bak.*` file
 and removes the active learned dictionary so Ari IME starts relearning from a

@@ -1,8 +1,28 @@
-# Known Limitations
+# Known Limitations and Field Reports
 
-This file tracks known limitations and environment-dependent behavior that are
-not bugs in Ari IME itself but affect how it behaves in the field. See
+This file tracks known limitations, fixed field reports, and environment-
+dependent behavior that affects how Ari IME behaves in the field. See
 [CHANGELOG.md](CHANGELOG.md) for fixed issues and release history.
+
+## GitHub issue #9: Shift+Delete on Hyprland/Wayland
+
+The reporter observed this on Ari IME 2.5.4. Modifier-only key events now leave
+candidate selection open; the fix shipped in 2.6.3, and 2.7.2 includes a
+regression test for the standalone Shift followed by Shift+Delete sequence.
+GitHub now reports the [public issue](https://github.com/kaiyasi/Ari-IME/issues/9)
+as closed. The live Hyprland check is still unchecked in
+[docs/manual-qa.md](docs/manual-qa.md); issue closure does not prove that this
+compositor-specific path was manually verified.
+
+## GitHub issue #10: Conservative typo correction
+
+The requested `HHK$G$` and `GHK$G$` recovery is already included in the 2.6.3
+release. Ari removes a repeated key or one invalid leading key only when the
+remaining input independently converts to Chinese, preserving ordinary
+English such as `price$`. The buffer regression suite covers both examples,
+uppercase and shifted-key input, and incomplete prefixes; the manual QA
+checklist includes the same examples. The [public report](https://github.com/kaiyasi/Ari-IME/issues/10)
+has been closed as completed with this release and test evidence.
 
 ## libchewing version sensitivity
 

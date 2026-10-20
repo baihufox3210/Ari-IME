@@ -3098,6 +3098,24 @@ void test_single_char_preference_keeps_context() {
     check_eq(s.preedit(), "智慧", "single-character imports keep 智慧");
 }
 
+void test_multisyllable_userphrase_round_trips_reading() {
+    test::TempConfigHome home("ari-multisyllable-userphrase", false);
+    Zhuyin engine;
+    check(engine.ok(), "multi-syllable userphrase engine is ready");
+    check(engine.addUserPhrase("妳好", "ㄋㄧˇ ㄏㄠˇ") > 0,
+          "libchewing accepts a space-delimited multi-syllable reading");
+
+    const auto entries = engine.userPhrases();
+    bool found = false;
+    for (const auto &entry : entries) {
+        if (entry.phrase == "妳好" && entry.reading == "ㄋㄧˇ ㄏㄠˇ") {
+            found = true;
+            break;
+        }
+    }
+    check(found, "multi-syllable userphrase exports the same reading");
+}
+
 void test_multi_char_preference_survives() {
     test::TempConfigHome home("ari-multi-char-preference", false);
     Zhuyin seeder;
@@ -3181,6 +3199,7 @@ int main() {
     test_ambiguous_symbol_boundary_literals();
     test_deterministic_key_stress();
     test_single_char_preference_keeps_context();
+    test_multisyllable_userphrase_round_trips_reading();
     test_multi_char_preference_survives();
 
     {

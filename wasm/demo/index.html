@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#10171b">
+    <title>Ari-IME 線上試用</title>
+    <link rel="stylesheet" href="./style.css">
+    <script type="module" src="./demo.js"></script>
+  </head>
+  <body>
+    <main class="shell">
+      <header>
+        <p class="eyebrow">ARI IME · WEBASSEMBLY</p>
+        <h1>注音、英文，一段打完</h1>
+        <p class="intro">試用 Ari-IME 的輸入核心。文字只留在這個瀏覽器分頁；示範不會儲存或傳送你的輸入內容。</p>
+      </header>
+
+      <section class="panel" aria-labelledby="typing-title">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">試打區</p>
+            <h2 id="typing-title">點一下輸入框開始</h2>
+          </div>
+          <span id="engine-status" class="status" role="status">正在載入輸入核心…</span>
+        </div>
+
+        <label class="sr-only" for="key-capture">在此輸入注音和英文</label>
+        <input id="key-capture" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="例如：aceru/6aj4" disabled>
+
+        <div class="examples" aria-label="範例輸入">
+          <button type="button" data-example="su3">試打 su3</button>
+          <button type="button" data-example="aceru/6aj4">試打 aceru/6aj4</button>
+          <button type="button" id="clear-button" class="quiet">清除</button>
+        </div>
+
+        <div class="result-grid">
+          <section class="result-card" aria-live="polite">
+            <p class="eyebrow">尚未送出的文字</p>
+            <p id="preedit" class="preedit">　</p>
+            <p id="hint" class="hint">按 Enter 送出；按 ↓ 開啟候選。</p>
+          </section>
+          <section class="result-card committed-card" aria-live="polite">
+            <p class="eyebrow">已送出</p>
+            <p id="committed" class="committed">　</p>
+          </section>
+        </div>
+
+        <section id="candidate-panel" class="candidate-panel" aria-label="候選字詞" hidden>
+          <div class="candidate-heading">
+            <p class="eyebrow">候選 <span id="page-label"></span></p>
+            <div class="page-buttons">
+              <button type="button" id="page-up" aria-label="上一頁">↑</button>
+              <button type="button" id="page-down" aria-label="下一頁">↓</button>
+            </div>
+          </div>
+          <div id="candidates" class="candidates"></div>
+        </section>
+
+        <div class="settings">
+          <label><input id="learning-toggle" type="checkbox"> 允許本分頁暫時學習選字</label>
+          <label><input id="fullwidth-toggle" type="checkbox"> 全形標點</label>
+          <label class="layout-setting" for="layout-select">鍵盤排列
+            <select id="layout-select">
+              <option value="Default">大千</option>
+              <option value="Eten">倚天</option>
+              <option value="Hsu">許氏</option>
+              <option value="Ibm">IBM</option>
+              <option value="GinYieh">精業</option>
+              <option value="Dvorak">Dvorak</option>
+              <option value="Carpalx">Carpalx</option>
+              <option value="ColemakDhAnsi">Colemak-DH ANSI</option>
+              <option value="ColemakDhOrth">Colemak-DH Ortholinear</option>
+              <option value="Workman">Workman</option>
+              <option value="Colemak">Colemak</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <section class="help-grid">
+        <article class="panel help-card">
+          <p class="eyebrow">操作方式</p>
+          <p>注音完成聲調後會轉成中文字。英文、數字和標點可直接混在同一段預編輯文字中。</p>
+          <p><kbd>↓</kbd> 開候選　<kbd>Enter</kbd> 送出　<kbd>Esc</kbd> 清除</p>
+        </article>
+        <article class="panel help-card">
+          <p class="eyebrow">關於這個示範</p>
+          <p>輸入核心在你的瀏覽器本機執行，不呼叫遠端服務。學習預設關閉；勾選後的資料只存在此分頁的記憶體，關閉分頁即消失。</p>
+          <p><a href="https://github.com/kaiyasi/Ari-IME/tree/main/wasm">閱讀 WASM 套件文件</a></p>
+        </article>
+      </section>
+      <footer>Ari-IME · Fcitx5 注音與英文混合輸入</footer>
+    </main>
+  </body>
+</html>

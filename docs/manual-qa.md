@@ -65,6 +65,18 @@ available:
 | Wayland | [ ] |
 | X11 | [ ] |
 
+The public Hyprland report for `Shift+Delete` was filed against Ari IME 2.5.4.
+The modifier handling fix shipped in 2.6.3, and 2.7.2 includes a regression
+test for the exact bare-Shift-then-Delete sequence. Keep a real Hyprland check
+in the release pass because the unit test cannot verify compositor event
+delivery:
+
+| Compositor path | Steps | Expected | Done |
+|---|---|---|---|
+| Hyprland / Wayland | Open candidates on a learned personal entry, press bare Shift, then Shift+Delete | Candidate window stays open after bare Shift; the personal entry is forgotten without deleting the focused character | [ ] |
+
+Reference: [GitHub issue #9](https://github.com/kaiyasi/Ari-IME/issues/9).
+
 The current public-release audit also includes these recorded toolkit
 smoke paths (they validate the Fcitx5 input-context protocol, preedit and
 commit path; they do not replace the named-application and theme checks

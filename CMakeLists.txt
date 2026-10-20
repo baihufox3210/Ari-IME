@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(ari-ime VERSION 2.7.2 LANGUAGES CXX)
+project(ari-ime VERSION 2.8.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -183,6 +183,10 @@ install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/reset-user-data.sh"
     DESTINATION "${CMAKE_INSTALL_BINDIR}"
     RENAME ari-ime-reset-data
 )
+install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/convert_vchewing_dictionary.py"
+    DESTINATION "${CMAKE_INSTALL_BINDIR}"
+    RENAME ari-ime-convert-vchewing-dictionary
+)
 
 # Portable personal-dictionary export/import and diagnostics. This is an
 # explicit command-line tool; package installation never mutates the user's
@@ -299,6 +303,17 @@ if(BUILD_TESTING)
                     "$<TARGET_FILE:ari-ime-dict>"
         )
         ari_ime_configure_test(dict_tool)
+    endif()
+    find_package(Python3 COMPONENTS Interpreter QUIET)
+    if(Python3_Interpreter_FOUND AND
+       EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test/test_convert_vchewing_dictionary.py")
+        add_test(
+            NAME vchewing_converter
+            COMMAND "${Python3_EXECUTABLE}"
+                    "${CMAKE_CURRENT_SOURCE_DIR}/test/test_convert_vchewing_dictionary.py"
+        )
+        set_tests_properties(vchewing_converter PROPERTIES
+            ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
     endif()
 endif()
 

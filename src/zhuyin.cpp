@@ -598,6 +598,8 @@ int Zhuyin::addUserPhrase(const std::string &phrase,
     if (!ctx_ || phrase.empty() || reading.empty()) {
         return -1;
     }
+    // libchewing's userphrase API requires a space between syllables. Ari's
+    // portable dictionary uses that same representation for lossless export.
     const int result =
         chewing_userphrase_add(ctx_, phrase.c_str(), reading.c_str());
     const bool exists =

@@ -48,7 +48,7 @@ void usage(std::ostream &out) {
         << "  ari-ime-dict backup\n"
         << "  ari-ime-dict candidates KEYS\n\n"
         << "Export/import uses a readable UTF-8 format with canonical Bopomofo\n"
-        << "readings (for example ㄋㄧˇ, not layout-specific keys such as su3).\n"
+        << "readings (for example ㄋㄧˇ ㄏㄠˇ, not layout keys such as su3).\n"
         << "Import merges entries\n"
         << "and creates a timestamped backup before changing Ari's data.\n";
 }
@@ -59,16 +59,33 @@ bool hasTabOrNewline(std::string_view value) {
            value.find('\r') != std::string_view::npos;
 }
 
-// Canonical readings contain only Bopomofo letters (U+3105–U+3129) plus one of
-// the tone marks the format uses. Layout keys such as "su3", ASCII, and
-// punctuation fail here with a per-line error before anything touches the
-// dictionary; libchewing's own rejection stays as a belt-and-braces branch.
-bool isCanonicalReading(const std::string &reading) {
+// Canonical readings contain Bopomofo syllables separated by single spaces.
+// Layout keys such as "su3", ASCII, punctuation, and mismatched phrase/readings
+// fail before anything touches the dictionary; libchewing's own rejection stays
+// as a belt-and-braces branch.
+bool isCanonicalReading(const std::string &phrase,
+                        const std::string &reading) {
     if (reading.empty()) {
         return false;
     }
     std::size_t offset = 0;
+    std::size_t syllables = 0;
+    std::size_t letters = 0;
+    bool toneSeen = false;
     while (offset < reading.size()) {
+        if (reading[offset] == ' ') {
+            if (letters == 0) {
+                return false;
+            }
+            ++syllables;
+            letters = 0;
+            toneSeen = false;
+            ++offset;
+            if (offset == reading.size() || reading[offset] == ' ') {
+                return false;
+            }
+            continue;
+        }
         const ari_ime::unicode::CodePoint cp =
             ari_ime::unicode::decode(reading, offset);
         if (!cp.valid) {
@@ -77,13 +94,29 @@ bool isCanonicalReading(const std::string &reading) {
         const bool letter = cp.value >= 0x3105 && cp.value <= 0x3129;
         const bool tone =
             cp.value == 0x02C7 || cp.value == 0x02C9 || cp.value == 0x02CA ||
-            cp.value == 0x02CC || cp.value == 0x02D7 || cp.value == 0x00B7;
-        if (!letter && !tone) {
+            cp.value == 0x02CB || cp.value == 0x02CC || cp.value == 0x02D7 ||
+            cp.value == 0x00B7;
+        if (letter) {
+            if (toneSeen) {
+                return false;
+            }
+            ++letters;
+        } else if (tone) {
+            if (letters == 0 || toneSeen) {
+                return false;
+            }
+            toneSeen = true;
+        } else {
             return false;
         }
         offset += cp.length;
     }
-    return true;
+    if (letters == 0) {
+        return false;
+    }
+    ++syllables;
+    return syllables == static_cast<std::size_t>(
+                            ari_ime::unicode::graphemeCount(phrase));
 }
 
 bool readEntries(std::istream &in, std::vector<Entry> &entries,
@@ -136,8 +169,10 @@ bool readEntries(std::istream &in, std::vector<Entry> &entries,
                     std::to_string(lineNumber);
             return false;
         }
-        if (!isCanonicalReading(reading)) {
-            error = "reading must be canonical Bopomofo (for example ㄋㄧˇ), "
+        if (!isCanonicalReading(phrase, reading)) {
+            error = "reading must contain one canonical Bopomofo syllable per "
+                    "phrase character, separated by spaces (for example "
+                    "ㄋㄧˇ ㄏㄠˇ), "
                     "got \"" +
                     reading + "\" on line " + std::to_string(lineNumber);
             return false;
@@ -170,7 +205,7 @@ bool writeEntries(std::ostream &out, std::vector<UserPhrase> entries) {
               });
 
     out << kHeader << '\n'
-        << "# One entry per line: phrase<TAB>canonical Bopomofo reading\n";
+        << "# One entry per line: phrase<TAB>Bopomofo syllables separated by spaces\n";
     for (const auto &entry : entries) {
         if (entry.phrase.empty() || entry.reading.empty() ||
             hasTabOrNewline(entry.phrase) || hasTabOrNewline(entry.reading)) {

@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+## 2.8.0 - 2026-10-20
+
+- Add a Traditional Chinese quick-start guide, a local WebAssembly demo, and an
+  isolated candidate-coverage benchmark.
+- Add a VChewing/XiaoMai Bopomofo dictionary converter and make Ari's portable
+  dictionary format round-trip space-separated syllables, including fourth-tone
+  readings.
+
 ## 2.7.2 - 2026-10-08
 
 - Keep single-character learning in libchewing without promoting it as an Ari

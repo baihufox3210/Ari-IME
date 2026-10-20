@@ -1,3 +1,14 @@
+fcitx5-ari-ime (2.8.0) unstable; urgency=medium
+
+  * Add the VChewing/XiaoMai Bopomofo dictionary converter and support portable
+    multi-syllable readings, including fourth-tone entries.
+  * Add a Traditional Chinese quick-start guide, local WebAssembly demo, and
+    isolated candidate-coverage benchmark.
+  * Rebuild the WebAssembly runtime from the project-pinned libchewing 0.8.5.
+  * Add converter regression coverage for normalization and safe output handling.
+
+ -- Kaiyasi <zengcode0315@gmail.com>  Tue, 20 Oct 2026 17:28:29 +0800
+
 fcitx5-ari-ime (2.7.2) unstable; urgency=medium
 
   * Restrict Ari phrase preferences to multi-character phrases so a learned
