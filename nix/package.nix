@@ -64,7 +64,13 @@ stdenv.mkDerivation {
     '';
     homepage = "https://github.com/kaiyasi/Ari-IME";
     changelog = "https://github.com/kaiyasi/Ari-IME/blob/main/CHANGELOG.md";
-    license = lib.licenses.gpl3Plus;
+    license = {
+      shortName = "KYL-Noncommercial-1.0";
+      fullName = "KYL Noncommercial License 1.0";
+      url = "https://github.com/kaiyasi/Ari-IME/blob/main/LICENSE";
+      free = false;
+      redistributable = false;
+    };
     platforms = lib.platforms.linux;
   };
 }

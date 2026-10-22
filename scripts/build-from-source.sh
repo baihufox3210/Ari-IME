@@ -284,7 +284,7 @@ package_build() {
         trap 'rm -rf "$work"' RETURN
         mkdir -p "$work/tree"
         local item
-        for item in CMakeLists.txt LICENSE README.md data scripts src test; do
+        for item in CMakeLists.txt LICENSE LICENSING.md licenses README.md data scripts src test; do
             [[ -e "$item" ]] && cp -a "$item" "$work/tree/"
         done
         rm -rf "$work/tree/src/build"

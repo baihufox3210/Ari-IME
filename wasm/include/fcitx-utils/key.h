@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: LicenseRef-KYL-Noncommercial-1.0
 // Minimal Fcitx key compatibility types used by the headless WASM build.
 #ifndef ARI_WASM_FCITX_UTILS_KEY_H
 #define ARI_WASM_FCITX_UTILS_KEY_H

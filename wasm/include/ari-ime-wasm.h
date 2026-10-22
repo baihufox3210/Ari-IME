@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: LicenseRef-KYL-Noncommercial-1.0
 #ifndef ARI_IME_WASM_API_H
 #define ARI_IME_WASM_API_H
 

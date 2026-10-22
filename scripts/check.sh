@@ -326,7 +326,7 @@ package_checks() {
     tmp="$(mktemp -d /tmp/ari-ime-pkgcheck-XXXXXX)"
     trap 'rm -rf "$tmp"' EXIT
     mkdir -p "$tmp/Ari-IME-$pkgbuild_version"
-    local package_sources=(CMakeLists.txt LICENSE README.md data scripts src)
+    local package_sources=(CMakeLists.txt LICENSE LICENSING.md licenses README.md data scripts src)
     if [[ -d test ]]; then
         package_sources+=(test)
     fi

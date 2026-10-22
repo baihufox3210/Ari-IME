@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: LicenseRef-KYL-Noncommercial-1.0
 // Copyright (C) 2026 Kaiyasi
 #ifndef ARI_IME_ARI_IME_H
 #define ARI_IME_ARI_IME_H

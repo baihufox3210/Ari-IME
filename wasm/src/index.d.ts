@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: LicenseRef-KYL-Noncommercial-1.0
 
 export type KeyboardLayout =
   | "Default"

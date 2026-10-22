@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: LicenseRef-KYL-Noncommercial-1.0
 // Copyright (C) 2026 Kaiyasi
 
 #include "ari-ime-wasm.h"

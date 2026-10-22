@@ -79,3 +79,11 @@ The module keeps learning data in its MEMFS `/ari-ime` directory. Pass
 `learningState` to `createAriIme` to restore a snapshot and call
 `exportLearningState()` to let the host save it in IndexedDB, local storage,
 or a server of its choice.
+
+## License
+
+Current first-party source is under the [KYL Noncommercial License 1.0](LICENSE).
+Commercial use requires separate written permission. The checked-in `dist/`
+artifacts predate this change and retain their earlier licenses; their Ari
+portions remain GPL-3.0-or-later (see `licenses/GPL-3.0.txt`).
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for dependency notices.

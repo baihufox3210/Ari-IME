@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: LicenseRef-KYL-Noncommercial-1.0
 #ifndef ARI_WASM_FCITX_CONFIG_ENUM_H
 #define ARI_WASM_FCITX_CONFIG_ENUM_H
 

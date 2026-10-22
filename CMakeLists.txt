@@ -340,3 +340,9 @@ elseif(ARI_IME_ENABLE_FUZZING)
         "ARI_IME_ENABLE_FUZZING was requested, but maintainer-only fuzz "
         "sources are not present; the fuzz target is disabled")
 endif()
+
+# Ship the project's current terms and the prior-version license notice.
+install(FILES LICENSE LICENSING.md
+    DESTINATION share/licenses/fcitx5-ari-ime)
+install(FILES licenses/legacy/GPL-3.0.txt
+    DESTINATION share/licenses/fcitx5-ari-ime/legacy)

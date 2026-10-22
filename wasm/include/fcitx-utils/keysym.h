@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: LicenseRef-KYL-Noncommercial-1.0
 // X11-compatible key symbols needed by the platform-neutral Ari buffer.
 #ifndef ARI_WASM_FCITX_UTILS_KEYSYM_H
 #define ARI_WASM_FCITX_UTILS_KEYSYM_H

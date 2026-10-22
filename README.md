@@ -672,4 +672,4 @@ export ARI_IME_USER_DATA_DIR=/tmp/ari-ime-dev-userdata
 
 ## License
 
-GPL-3.0-or-later. See [LICENSE](LICENSE).
+KYL Noncommercial License 1.0. Noncommercial use is permitted; commercial use, including internal use by a for-profit entity, requires a separate written agreement. See [LICENSE](LICENSE) and [LICENSING.md](LICENSING.md).
