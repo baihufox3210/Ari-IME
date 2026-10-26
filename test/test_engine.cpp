@@ -140,6 +140,17 @@ int main() {
     }
     const auto pickingUpdates = ic.updates;
     const auto pickingCursor = ic.inputPanel().clientPreedit().cursor();
+    // Frontends may report geometry/scale changes between candidate keys.
+    // Observing these events must not change their negotiated protocol flags
+    // or trigger another marked-text update / candidate reconstruction.
+    const auto pickingPanelUpdates = panelUpdates;
+    const auto capabilities = ic.capabilityFlags();
+    ic.setCursorRect(fcitx::Rect().setPosition(20, 30).setSize(1, 24), 1.5);
+    test::check(ic.updates == pickingUpdates && panelUpdates == pickingPanelUpdates,
+                "cursor geometry diagnostics do not publish text or panel updates");
+    test::check(ic.inputPanel().candidateList() == list &&
+                    ic.capabilityFlags() == capabilities,
+                "cursor geometry diagnostics preserve candidates and frontend capabilities");
     if (list && list->size() > 1) {
         send(fcitx::Key(FcitxKey_Down));
         test::check(ic.updates == pickingUpdates,

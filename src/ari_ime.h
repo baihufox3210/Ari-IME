@@ -3,8 +3,10 @@
 #ifndef ARI_IME_ARI_IME_H
 #define ARI_IME_ARI_IME_H
 
+#include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include <fcitx-config/configuration.h>
 #include <fcitx-config/iniparser.h>
@@ -212,6 +214,9 @@ private:
     fcitx::Instance *instance_;
     fcitx::FactoryFor<AriImeState> factory_;
     AriImeConfig config_;
+    // Own subscriptions so diagnostic callbacks cannot outlive this addon.
+    std::vector<std::unique_ptr<fcitx::HandlerTableEntry<fcitx::EventHandler>>>
+        traceHandlers_;
 };
 
 class AriImeEngineFactory : public fcitx::AddonFactory {

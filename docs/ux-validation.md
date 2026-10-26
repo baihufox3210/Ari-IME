@@ -300,3 +300,27 @@ https://github.com/fcitx/fcitx5/blob/5.1.23/src/ui/classic/inputwindow.cpp
 https://github.com/fcitx/fcitx5/blob/5.1.23/src/lib/fcitx/instance.cpp
 https://github.com/fcitx/fcitx5/blob/5.1.23/src/lib/fcitx/globalconfig.cpp
 https://github.com/fcitx/fcitx5/blob/5.1.23/src/lib/fcitx/inputpanel.h
+
+## 2026-10-26：Firefox／Niri 閃爍的前端與幾何診斷
+
+- 使用者現場同頁反白紀錄：frontend=dbus，preedit_changed=0、panel_changed=1、
+  list_rebuilt=0；reset 後才看到 Wayland 視窗隱藏。沒有證據指出每次反白由 Ari
+  重送組字或清空清單造成，也不能把 reset 後的隱藏當作閃爍根因。
+- 查核 fcitx5-gtk 的 Gtk3InputWindow：client-side popup 使用 GTK DPI；Wayland
+  reposition 在游標矩形變更或 popup 超出 parent 邊界時 hide/show。這是可解釋
+  現象的上游路徑，尚待本機確認是否啟用 client-side panel。
+- Niri #3099 有相同 Firefox 邊界閃爍回報；原生 Wayland 輸入是可直接對照的替代路徑。
+  文件加入完全結束 Firefox 後 unset GTK_IM_MODULE 的啟動方式、原生前端確認、
+  以及本機驗收表；未自行修改使用者桌面環境或宣稱提示尺寸與閃爍已修復。
+- 新增 ARI_CONTEXT：program、display、focus、client_panel、relative_rect、scale、
+  cursor rect；同時觀察 cursor/capability/focus/reset 事件，涵蓋不經按鍵的更新。
+  診斷預設關閉，不記錄組字內容、按鍵、視窗標題或 surrounding text。
+- 新增幾何事件的無副作用回歸：保留清單身份與能力旗標、不重送組字／面板事件。
+  編譯成功，CTest 4/4 通過（27.49 秒）；trace 下 engine 159 checks、0 failures，
+  實際觀察 scale=1.5 rect=20,30,1,24，未包含測試組字內容。
+- 本環境沒有 Firefox/Niri 桌面。原生 Wayland 對照、邊界重現及提示大小仍待本機驗收。
+
+依據：
+https://github.com/fcitx/fcitx5-gtk/blob/master/gtk3/gtk3inputwindow.cpp
+https://github.com/niri-wm/niri/issues/3099
+https://fcitx-im.org/wiki/Using_Fcitx_5_on_Wayland

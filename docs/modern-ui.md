@@ -80,7 +80,7 @@ fcitx5 -r -D --verbose='ari-ime=5,classicui=5' 2>&1 | tee ~/ari-ime-flicker.log
 完成後可從另一個終端機取出 Ari 記錄：
 
 ```sh
-grep -E 'ARI_(UI|MODE|RESET|COMMIT)' ~/ari-ime-flicker.log | tail -n 80
+grep -E 'ARI_|Update component:|Input Window' ~/ari-ime-flicker.log | tail -n 160
 ```
 
 Ari 的診斷預設關閉，啟用時只記錄狀態與長度，不記輸入文字或按鍵：
@@ -91,6 +91,10 @@ Ari 的診斷預設關閉，啟用時只記錄狀態與長度，不記輸入文�
 | panel_changed | 1 表示要求面板更新；只移動候選反白時應是 1 |
 | list_rebuilt | 同字同頁只移動反白時應是 0；翻頁或候選改變可為 1 |
 | context / frontend | 區分輸入上下文與 Wayland／其他前端 |
+| ARI_CONTEXT program / display | 確認應用程式及顯示路徑，DBus 不等於原生 Wayland |
+| client_panel | 1 表示 client 宣告自行畫候選視窗，不能只看 Classic UI 的視窗日誌 |
+| relative_rect / scale / rect | client 的矩形座標語義、縮放及 x,y,寬,高；不是最終 popup 的尺寸或實際螢幕 DPI |
+| event=cursor / focus_in / focus_out / reset | 記錄不經 Ari 按鍵處理也可能發生的幾何、焦點與重設事件 |
 | page / pages / highlight | 對照反白移動及翻頁是否發生 |
 | overlay_bytes | 新版 Fcitx 暫時模式提示的 UTF-8 長度，舊版沒有此欄位 API 時為 0 |
 | ARI_MODE / ARI_RESET | 追蹤切換提示或組字被重設；重複 reset 需再看焦點／協定來源 |
@@ -98,6 +102,55 @@ Ari 的診斷預設關閉，啟用時只記錄狀態與長度，不記輸入文�
 只移動同頁反白，預期 `preedit_changed=0 panel_changed=1 list_rebuilt=0`。
 若三項都是 0，Ari 沒有發出重繪；仍需對照 Fcitx 暫時提示、Classic UI 與應用程式。
 日誌可以定位事件來源，不是單靠一行記錄就能斷定所有視覺閃爍的原因。
+
+### Firefox + Niri：優先對照輸入協定
+
+現場樣本在同頁移動反白時一直是 `preedit_changed=0 panel_changed=1 list_rebuilt=0`，
+`frontend=dbus`；最後的隱藏發生在 `ARI_RESET` 之後。這證實重複組字更新已消除，
+卻不足以判定候選視窗閃爍是 Ari、GTK popup 或合成器造成。
+
+Fcitx GTK 模組可在 Firefox 程序內畫 client-side 候選視窗，使用 GTK 的 DPI；
+它的 Wayland reposition 邏輯在游標矩形改變，或 popup 超過 parent 邊界時會
+hide/show。後一項可能在每次候選反白更新時再次成立，因此即使組字不變仍可能閃爍。
+這是已確認存在的上游程式路徑，是否命中本機須由 `client_panel` 與桌面對照確認。
+Niri issue #3099 也有 Firefox 候選超出邊界閃爍、改走原生輸入協定後消失的回報。
+
+先存好工作並從 Firefox 選單完全結束所有視窗，然後在 Niri 桌面終端機執行：
+
+```sh
+env -u GTK_IM_MODULE MOZ_ENABLE_WAYLAND=1 firefox
+```
+
+若仍有 Firefox 背景程序，指令可能只把請求交給舊程序，環境變數不會生效。
+在 `about:support` 檢查 Window Protocol 是 `wayland`；這只確認顯示後端，
+還需 Fcitx 日誌確認候選操作變成 `frontend=wayland_v2`，而非繼續 `dbus`。
+若仍是 DBus，可再完全結束後以 `GTK_IM_MODULE=wayland` 明確選擇 GTK 內建模組：
+
+```sh
+env GTK_IM_MODULE=wayland MOZ_ENABLE_WAYLAND=1 firefox
+```
+
+用相同網頁輸入框、相同顯示器與縮放重現：
+
+| 操作 | 預期 | 本環境實際結果 |
+| --- | --- | --- |
+| 句中開候選，以 Up/Down 移動反白 | 原生路徑不經 GTK 模組 popup 的 hide/show | 無桌面，待本機確認 |
+| 輸入框靠近視窗底部再移動反白 | 候選由原生 input popup 正確定位，無持續閃爍 | 無桌面，待本機確認 |
+| 中英文／輸入法切換 | 提示維持單字，記錄是否仍有異常放大 | 無桌面，待本機確認 |
+| 有組字時 Ctrl+V | 組字先確認，應用程式貼上一次 | 引擎回歸通過；Firefox 待本機確認 |
+
+若測試有效，在 `~/.config/niri/config.kdl` 的 `environment` 區段移除
+`GTK_IM_MODULE "fcitx"`（不要整個刪除 environment），並檢查登入環境的其他設定來源；
+登出／登入後完全重開應用程式。修改 Niri 設定前自行備份，執行 `niri validate` 檢查語法。
+Wayland GTK3/4 通常會自行選內建 Wayland 模組；XWayland 程式如需 fcitx 模組，
+可在 GTK 設定的 `[Settings]` 保留 `gtk-im-module=fcitx`，或對該程式個別設定環境。
+保留 XWayland 的 `XMODIFIERS=@im=fcitx` 與適用 Qt 的設定。
+此處不自動改動 Niri、DMS、Firefox profile 或全域縮放；若路徑已是原生仍閃，
+需用新日誌的 cursor/focus 事件繼續定位，不能視為已修好。
+
+依據：[Fcitx Wayland 設定](https://fcitx-im.org/wiki/Using_Fcitx_5_on_Wayland)、
+[GTK3 popup 實作](https://github.com/fcitx/fcitx5-gtk/blob/master/gtk3/gtk3inputwindow.cpp)、
+[Niri #3099](https://github.com/niri-wm/niri/issues/3099)。
 停止前景診斷後，可用 `fcitx5 -r -d` 恢復一般背景執行；若由服務管理則依原服務啟動方式。
 
 ## 已轉換文字的刪除與游標

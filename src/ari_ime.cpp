@@ -28,6 +28,23 @@ namespace {
 
 FCITX_DEFINE_LOG_CATEGORY(ariImeTrace, "ari-ime");
 
+void traceContext(const char *event, fcitx::InputContext *ic) {
+    // The GTK module can draw its own popup, bypassing Classic UI's window.
+    // Cursor updates arrive independently of keys/panel updates; record them
+    // too, without reading surrounding text, window titles or key events.
+    FCITX_LOGC(ariImeTrace, Debug) << "ARI_CONTEXT event=" << event
+        << " context=" << ic << " program=" << ic->program()
+        << " frontend=" << ic->frontendName() << " display=" << ic->display()
+        << " focus=" << ic->hasFocus()
+        << " client_panel=" << ic->capabilityFlags().test(
+               fcitx::CapabilityFlag::ClientSideInputPanel)
+        << " relative_rect=" << ic->capabilityFlags().test(
+               fcitx::CapabilityFlag::RelativeRect)
+        << " scale=" << ic->scaleFactor()
+        << " rect=" << ic->cursorRect().left() << "," << ic->cursorRect().top()
+        << "," << ic->cursorRect().width() << "," << ic->cursorRect().height();
+}
+
 template <typename Panel>
 std::size_t overlayLength(const Panel &panel) {
     if constexpr (requires { panel.overlayMessage(); }) {
@@ -205,6 +222,19 @@ AriImeEngine::AriImeEngine(fcitx::Instance *instance)
       factory_([](fcitx::InputContext &) { return new AriImeState(); }) {
     instance_->inputContextManager().registerProperty("ari_imeState", &factory_);
     reloadConfig();
+    for (const auto &[type, name] : {
+             std::pair{fcitx::EventType::InputContextCursorRectChanged, "cursor"},
+             std::pair{fcitx::EventType::InputContextCapabilityChanged, "capability"},
+             std::pair{fcitx::EventType::InputContextFocusIn, "focus_in"},
+             std::pair{fcitx::EventType::InputContextFocusOut, "focus_out"},
+             std::pair{fcitx::EventType::InputContextReset, "reset"}}) {
+        traceHandlers_.push_back(instance_->watchEvent(
+            type, fcitx::EventWatcherPhase::Default,
+            [name](fcitx::Event &event) {
+                traceContext(name, static_cast<fcitx::InputContextEvent &>(event)
+                                       .inputContext());
+            }));
+    }
 }
 
 std::string AriImeEngine::subModeIconImpl(const fcitx::InputMethodEntry &,
@@ -366,6 +396,9 @@ void AriImeEngine::updateUI(fcitx::InputContext *ic, Buffer &buffer) {
         << " highlight=" << buffer.highlight()
         << " preedit_changed=" << clientChanged << " panel_changed=" << panelChanged
         << " list_rebuilt=" << listRebuilt << " overlay_bytes=" << overlayLength(panel);
+    if (ariImeTrace().checkLogLevel(fcitx::LogLevel::Debug)) {
+        traceContext("panel", ic);
+    }
     panel.setAuxUp(std::move(auxUp));
     panel.setAuxDown(std::move(auxDown));
     if (clientChanged) {
