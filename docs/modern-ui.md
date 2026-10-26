@@ -42,9 +42,20 @@ Esc 關閉候選並保留組字，之後 Left/Right 移動文字游標。Enter �
 每次翻頁更新都在右側保留一個全形字寬。空格只存在顯示層，不寫入組字、
 commit 或使用者詞典。
 
-已移除共用面板的額外右側加寬，InputPanel 和 Menu 使用對稱邊距，避免影響
-切換輸入法提示及清單。Ari 自己的中英文切換提示縮短為「中／英」。
-實際提示框由 Fcitx 按字型量測，對稱邊距不保證所有字型下外框像素恰好正方形。
+已移除共用面板的額外右側加寬。切換提示使用單字「中／英」，左右間距一致，
+文字水平留白 8px、垂直 6px，以補償中文字寬和行高差異，回到接近方形的外觀。
+實際外框由 Fcitx、字型與縮放量測，任意字型下不保證像素級正方形。
+
+若切換時仍顯示整個輸入法名稱，請啟用緊湊模式：
+
+```sh
+ari-ime-theme dark --font 'Sans 12' --mode-hint compact
+```
+
+工具會分別備份 Classic UI 與全域設定，保留快捷鍵與其他區段，重新載入兩者。
+這會設定共用的 `[Behavior] CompactInputMethodInformation=True`；
+`--mode-hint full` 改回完整名稱，不指定則保留原值。
+Fcitx 的緊湊提示會讀 Ari 提供的 subModeLabel，而非帶 baihu 的完整顯示名稱。
 
 ## 選字更新與反白穩定性
 
@@ -55,6 +66,39 @@ commit 或使用者詞典。
 
 這項修改消除 Ari 的重複刷新路徑；應用程式自身的游標閃爍、DMS／Classic UI
 繪製仍須桌面實測。若問題是應用程式內滑鼠拖曳反白，需要另記應用程式與操作。
+
+## 用指令診斷閃爍
+
+先更新／安裝本版 Ari，在 Niri 桌面終端機執行（以測試文字重現）：
+
+```sh
+fcitx5 -r -D --verbose='ari-ime=5,classicui=5' 2>&1 | tee ~/ari-ime-flicker.log
+```
+
+`-r` 取代目前的 Fcitx，`-D` 保持前景以便擷取。這個終端機先保持開著，
+在另一個視窗輸入，記錄候選反白移動、翻頁、中英文切換時哪一步會閃。
+完成後可從另一個終端機取出 Ari 記錄：
+
+```sh
+grep -E 'ARI_(UI|MODE|RESET|COMMIT)' ~/ari-ime-flicker.log | tail -n 80
+```
+
+Ari 的診斷預設關閉，啟用時只記錄狀態與長度，不記輸入文字或按鍵：
+
+| 欄位 | 判讀 |
+| --- | --- |
+| preedit_changed | 1 表示文字、格式或組字游標改變，才發送 client preedit |
+| panel_changed | 1 表示要求面板更新；只移動候選反白時應是 1 |
+| list_rebuilt | 同字同頁只移動反白時應是 0；翻頁或候選改變可為 1 |
+| context / frontend | 區分輸入上下文與 Wayland／其他前端 |
+| page / pages / highlight | 對照反白移動及翻頁是否發生 |
+| overlay_bytes | 新版 Fcitx 暫時模式提示的 UTF-8 長度，舊版沒有此欄位 API 時為 0 |
+| ARI_MODE / ARI_RESET | 追蹤切換提示或組字被重設；重複 reset 需再看焦點／協定來源 |
+
+只移動同頁反白，預期 `preedit_changed=0 panel_changed=1 list_rebuilt=0`。
+若三項都是 0，Ari 沒有發出重繪；仍需對照 Fcitx 暫時提示、Classic UI 與應用程式。
+日誌可以定位事件來源，不是單靠一行記錄就能斷定所有視覺閃爍的原因。
+停止前景診斷後，可用 `fcitx5 -r -d` 恢復一般背景執行；若由服務管理則依原服務啟動方式。
 
 ## 已轉換文字的刪除與游標
 

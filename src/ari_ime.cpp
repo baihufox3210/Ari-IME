@@ -11,6 +11,7 @@
 #include <vector>
 
 #include <fcitx-utils/keysym.h>
+#include <fcitx-utils/log.h>
 #include <fcitx-utils/textformatflags.h>
 #include <fcitx/candidatelist.h>
 #include <fcitx/inputcontext.h>
@@ -24,6 +25,16 @@
 #include "unicode.h"
 
 namespace {
+
+FCITX_DEFINE_LOG_CATEGORY(ariImeTrace, "ari-ime");
+
+template <typename Panel>
+std::size_t overlayLength(const Panel &panel) {
+    if constexpr (requires { panel.overlayMessage(); }) {
+        return panel.overlayMessage().textLength();
+    }
+    return 0;
+}
 
 // Display-only candidate; selection is driven from keyEvent so the visible
 // highlight tracks our own ↑/↓ navigation.
@@ -115,6 +126,8 @@ std::string joinAuxParts(const std::vector<std::string> &parts) {
 
 void showAriImeInformation(fcitx::Instance *instance, fcitx::InputContext *ic,
                             const std::string &message) {
+    FCITX_LOGC(ariImeTrace, Debug) << "ARI_MODE context=" << ic
+        << " message_bytes=" << message.size();
 #ifdef ARI_IME_HAVE_CUSTOM_INPUT_METHOD_INFORMATION
     instance->showCustomInputMethodInformation(ic, message);
 #else
@@ -205,6 +218,11 @@ std::string AriImeEngine::subModeIconImpl(const fcitx::InputMethodEntry &,
     return path.empty() ? "input-keyboard" : std::filesystem::absolute(path).string();
 }
 
+std::string AriImeEngine::subModeLabelImpl(const fcitx::InputMethodEntry &,
+                                          fcitx::InputContext &ic) {
+    return ic.propertyFor(&factory_)->buffer.isForcedEnglish() ? "英" : "中";
+}
+
 ari_ime::KeyboardLayout AriImeEngine::applyConfig() {
     ari_ime::KeyboardLayout layout = *config_.keyboardLayout;
     if (!ari_ime::keyboardLayoutAvailable(layout)) {
@@ -220,6 +238,7 @@ void AriImeEngine::updateUI(fcitx::InputContext *ic, Buffer &buffer) {
     fcitx::Text auxUp;
     fcitx::Text auxDown;
     bool candidatesChanged = false;
+    bool listRebuilt = false;
 
     const std::string preeditStr = buffer.preeditText();
     const int selChar = buffer.selectionChar();
@@ -270,6 +289,7 @@ void AriImeEngine::updateUI(fcitx::InputContext *ic, Buffer &buffer) {
             reuse = list->candidate(i).text().toString() == displayed[i];
         }
         if (!reuse) {
+            listRebuilt = true;
             auto replacement = std::make_unique<AriImeCandidateList>(
                 selChar, buffer.candidatePage());
             replacement->setPageSize(ari_ime::kCandPerPage);
@@ -337,6 +357,15 @@ void AriImeEngine::updateUI(fcitx::InputContext *ic, Buffer &buffer) {
     const bool panelChanged = candidatesChanged || clientChanged ||
         !sameText(previousPanelPreedit, panel.preedit()) ||
         !sameText(panel.auxUp(), auxUp) || !sameText(panel.auxDown(), auxDown);
+    FCITX_LOGC(ariImeTrace, Debug) << "ARI_UI context=" << ic
+        << " frontend=" << ic->frontend()
+        << " inline=" << ic->capabilityFlags().test(fcitx::CapabilityFlag::Preedit)
+        << " editing=" << buffer.isEditing() << " picking=" << buffer.isPicking()
+        << " caret=" << caretChar << " candidates=" << candidates.size()
+        << " page=" << buffer.candidatePage() << " pages=" << buffer.candidatePageCount()
+        << " highlight=" << buffer.highlight()
+        << " preedit_changed=" << clientChanged << " panel_changed=" << panelChanged
+        << " list_rebuilt=" << listRebuilt << " overlay_bytes=" << overlayLength(panel);
     panel.setAuxUp(std::move(auxUp));
     panel.setAuxDown(std::move(auxDown));
     if (clientChanged) {
@@ -390,6 +419,8 @@ bool AriImeEngine::beginReconversion(fcitx::InputContext *ic,
 void AriImeEngine::applyResult(fcitx::InputContext *ic, Buffer &buffer,
                                 const KeyResult &result) {
     if (result.hasCommit && !result.commitText.empty()) {
+        FCITX_LOGC(ariImeTrace, Debug) << "ARI_COMMIT context=" << ic
+            << " bytes=" << result.commitText.size();
         ic->commitString(result.commitText);
     }
     if (result.notifyMode) {
@@ -559,6 +590,8 @@ void AriImeEngine::reset(const fcitx::InputMethodEntry &,
                           fcitx::InputContextEvent &event) {
     auto *ic = event.inputContext();
     auto *state = ic->propertyFor(&factory_);
+    FCITX_LOGC(ariImeTrace, Debug) << "ARI_RESET context=" << ic
+        << " reconversion=" << state->reconversionActive;
     if (state->reconversionActive) {
         state->buffer.reset();
         ic->commitString(state->reconversionText);

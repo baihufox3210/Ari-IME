@@ -65,6 +65,33 @@ class ThemeTests(unittest.TestCase):
             theme.apply_theme('auto', path, 'Sans 12')
             self.assertEqual(path.read_text(), 'Theme=ari-light\nDarkTheme=ari-dark\nUseDarkTheme=True\nFont=Sans 12\n')
 
+    def test_compact_hint_preserves_hotkeys_and_backs_up_global_config(self):
+        original = '# keep\n[Hotkey]\nTriggerKeys=Control+space\n[Behavior]\n# hint\nCompactInputMethodInformation=False\nCompactInputMethodInformation=False\nShareInputState=No\n[Other]\nCompactInputMethodInformation=keep\n'
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'config'
+            path.write_text(original)
+            backup = theme.apply_mode_hint(path, 'compact')
+            self.assertEqual(backup.read_text(), original)
+            updated = path.read_text()
+            self.assertIn('TriggerKeys=Control+space', updated)
+            self.assertIn('ShareInputState=No', updated)
+            self.assertIn('[Other]\nCompactInputMethodInformation=keep', updated)
+            self.assertEqual(updated.count('CompactInputMethodInformation=True'), 1)
+            self.assertIsNone(theme.apply_mode_hint(path, 'compact'))
+            theme.apply_mode_hint(path, 'full')
+            self.assertIn('CompactInputMethodInformation=False', path.read_text())
+
+    def test_compact_hint_adds_missing_section_without_dry_run_writes(self):
+        from contextlib import redirect_stdout
+        from io import StringIO
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'missing' / 'config'
+            with redirect_stdout(StringIO()):
+                theme.apply_mode_hint(path, 'compact', dry_run=True)
+            self.assertFalse(path.parent.exists())
+            theme.apply_mode_hint(path, 'compact')
+            self.assertEqual(path.read_text(), '[Behavior]\nCompactInputMethodInformation=True\n')
+
     def test_tray_icon_preference_changes_only_when_requested(self):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / 'classicui.conf'
@@ -123,12 +150,14 @@ class ThemeTests(unittest.TestCase):
             installed.mkdir(parents=True)
             (installed / 'theme.conf').write_text('[Metadata]\nName=Ari Dark\n')
             result = subprocess.run([sys.executable, str(SCRIPT), 'dark', '--no-reload',
-                                     '--tray-icon', 'image'],
+                                     '--tray-icon', 'image', '--mode-hint', 'compact'],
                                     env=env, capture_output=True, text=True)
             self.assertEqual(result.returncode, 0, result.stderr)
             saved = (Path(folder) / 'config/fcitx5/conf/classicui.conf').read_text()
             self.assertIn('Theme=ari-dark', saved)
             self.assertIn('PreferTextIcon=False', saved)
+            self.assertIn('CompactInputMethodInformation=True',
+                          (Path(folder) / 'config/fcitx5/config').read_text())
 
 
 if __name__ == '__main__':

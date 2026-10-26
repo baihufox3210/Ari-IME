@@ -188,6 +188,9 @@ public:
     std::string subModeIconImpl(const fcitx::InputMethodEntry &entry,
                                 fcitx::InputContext &ic) override;
 
+    std::string subModeLabelImpl(const fcitx::InputMethodEntry &entry,
+                                 fcitx::InputContext &ic) override;
+
     // --- Configuration (fcitx5-configtool) ---
     const fcitx::Configuration *getConfig() const override { return &config_; }
     void setConfig(const fcitx::RawConfig &config) override {

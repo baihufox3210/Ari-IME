@@ -276,3 +276,27 @@ https://github.com/qt/qtbase/blob/6.10/src/gui/image/qicon.cpp
 來源：
 https://github.com/fcitx/fcitx5/blob/5.1.23/src/lib/fcitx/inputcontext.cpp
 https://github.com/fcitx/fcitx5/blob/5.1.23/src/ui/classic/inputwindow.cpp
+
+## 2026-10-26：緊湊切換提示與可開關的 UI 診斷
+
+- Fcitx 5.1.22+ 的模式提示使用獨立 overlay，框架的 compact 選項決定標籤／全名。
+  Ari 新增 subModeLabel 提供單字中／英；主題文字邊距改為水平 8px、垂直 6px，
+  補償中文字寬與行高，恢復接近方形。未宣稱不同字型下像素長寬完全一致。
+- 新增 ari-ime-theme --mode-hint compact/full：只調整全域 Behavior 區段中的
+  CompactInputMethodInformation，精確備份、保留 Hotkey 等區段、支援 dry-run，
+  重讀全域與 Classic UI。沒有此選項時保留共用偏好。
+- Python 13/13 通過；staged install 後實際 CLI 可寫入隔離設定。
+- 新增預設關閉的 ari-ime debug category：ARI_UI、ARI_MODE、ARI_RESET、ARI_COMMIT。
+  只記錄前端、上下文、長度、cursor／page／highlight 與更新判斷，不記文字或按鍵。
+- 用 test_engine 開啟 trace，157 checks 通過；同頁反白樣本為
+  preedit_changed=0 panel_changed=1 list_rebuilt=0，並有實際 page=2 的分頁記錄。
+  日誌檢查確認沒有測試組字內容。
+- 編譯與 CTest 4/4 通過（27.25 秒）。SDK 為 5.1.19，overlay 欄位採 C++20
+  requires 偵測，沒有新版 API 時仍可編譯。新版 API 分支尚無桌面 runtime 驗收。
+- 提供 fcitx5 -r -D --verbose='ari-ime=5,classicui=5' 的現場捕捉步驟。
+  事件記錄能縮小來源，不能代替桌面畫面驗證，等待使用者重現並提供日誌。
+
+依據：
+https://github.com/fcitx/fcitx5/blob/5.1.23/src/lib/fcitx/instance.cpp
+https://github.com/fcitx/fcitx5/blob/5.1.23/src/lib/fcitx/globalconfig.cpp
+https://github.com/fcitx/fcitx5/blob/5.1.23/src/lib/fcitx/inputpanel.h

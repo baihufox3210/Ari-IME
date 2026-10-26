@@ -3,6 +3,7 @@
 #include "candidate_presentation.h"
 #include "test_common.h"
 #include <fcitx/inputcontext.h>
+#include <fcitx-utils/log.h>
 #include <fcitx/inputmethodentry.h>
 #include <fcitx/inputpanel.h>
 
@@ -32,6 +33,9 @@ private:
 };
 
 int main() {
+    if (std::getenv("ARI_IME_TEST_TRACE")) {
+        fcitx::Log::setLogRule("ari-ime=5");
+    }
     test::TempConfigHome home("ari-engine-test");
     // Use a real installed-shape PNG under XDG_DATA_HOME so an empty or
     // unrelated shell icon theme cannot influence Ari's advertised icon.
@@ -69,6 +73,11 @@ int main() {
     auto uiWatch = instance.watchEvent(fcitx::EventType::InputContextUpdateUI,
         fcitx::EventWatcherPhase::Default, [&](fcitx::Event &) { ++panelUpdates; });
     auto *state = ic.propertyAs<AriImeState>("ari_imeState");
+    test::check_eq(engine.subModeLabel(entry, ic), "中", "compact Chinese hint is one character");
+    state->buffer.handleKey(fcitx::Key(FcitxKey_space, fcitx::KeyState::Ctrl));
+    test::check_eq(engine.subModeLabel(entry, ic), "英", "compact English hint is one character");
+    state->buffer.handleKey(fcitx::Key(FcitxKey_space, fcitx::KeyState::Ctrl));
+
     auto send = [&](fcitx::Key key, bool release = false) {
         fcitx::KeyEvent event(&ic, key, release);
         engine.keyEvent(entry, event);
@@ -145,6 +154,10 @@ int main() {
         test::check(ic.updates == pickingUpdates,
                     "reverse highlight does not resend client preedit");
     }
+    // Use the first character's longer list for actual multi-page coverage.
+    send(fcitx::Key(FcitxKey_Escape));
+    send(fcitx::Key(FcitxKey_Home));
+    send(fcitx::Key(FcitxKey_Down));
     // Native defaults: arrows page the picker without moving its text target
     // or closing at the last page (including the one-page case).
     const auto pickerText = state->buffer.preeditText();

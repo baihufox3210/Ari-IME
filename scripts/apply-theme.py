@@ -39,6 +39,33 @@ def update_root_options(text, options):
     return ''.join(result)
 
 
+def update_section_options(text, section, options):
+    """Preserve other Fcitx sections, comments and keybindings."""
+    lines = text.splitlines(keepends=True)
+    result = []
+    found = False
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        result.append(line)
+        index += 1
+        if line.strip() != '[' + section + ']':
+            continue
+        found = True
+        end = index
+        while end < len(lines) and not lines[end].strip().startswith('['):
+            end += 1
+        if not result[-1].endswith('\n'):
+            result[-1] += '\n'
+        result.append(update_root_options(''.join(lines[index:end]), options))
+        index = end
+    if not found:
+        if result and not result[-1].endswith('\n'):
+            result[-1] += '\n'
+        result.append('[' + section + ']\n' + update_root_options('', options))
+    return ''.join(result)
+
+
 def theme_exists(name):
     user_data = Path(os.environ.get('XDG_DATA_HOME') or Path.home() / '.local/share')
     system_data = os.environ.get('XDG_DATA_DIRS') or '/usr/local/share:/usr/share'
@@ -60,10 +87,21 @@ def apply_theme(mode, path, font=None, dry_run=False, tray_icon=None):
         if not font.strip() or '\n' in font or '\r' in font:
             raise ValueError('Font must be a non-empty single line')
         options['Font'] = font
+    return update_config(path, lambda text: update_root_options(text, options), dry_run)
+
+
+def apply_mode_hint(path, mode, dry_run=False):
+    if mode not in ('compact', 'full'):
+        raise ValueError('Mode hint must be compact or full')
+    options = {'CompactInputMethodInformation': 'True' if mode == 'compact' else 'False'}
+    return update_config(path, lambda text: update_section_options(text, 'Behavior', options), dry_run)
+
+
+def update_config(path, transform, dry_run=False):
     # Respect dotfile symlinks: update their target rather than replacing links.
     path = path.expanduser().resolve()
     original = path.read_text(encoding='utf-8') if path.exists() else ''
-    updated = update_root_options(original, options)
+    updated = transform(original)
     if dry_run:
         print(updated, end='')
         return None
@@ -153,6 +191,8 @@ def main():
     parser.add_argument('--font', help='Optional Fcitx font, e.g. "Sans 12"')
     parser.add_argument('--tray-icon', choices=('image', 'text'),
                         help='Optional shared Classic UI tray icon preference')
+    parser.add_argument('--mode-hint', choices=('compact', 'full'),
+                        help='Optional shared Fcitx switching hint style')
     parser.add_argument('--dry-run', action='store_true')
     parser.add_argument('--no-reload', action='store_true')
     args = parser.parse_args()
@@ -165,6 +205,11 @@ def main():
     path = config / 'fcitx5/conf/classicui.conf'
     try:
         backup = apply_theme(args.mode, path, args.font, args.dry_run, args.tray_icon)
+        hint_backup = None
+        if args.mode_hint:
+            if args.dry_run:
+                print('# fcitx5/config')
+            hint_backup = apply_mode_hint(config / 'fcitx5/config', args.mode_hint, args.dry_run)
     except (OSError, ValueError) as error:
         parser.exit(1, f'ari-ime-theme: {error}\n')
     if args.dry_run:
@@ -176,10 +221,21 @@ def main():
         print('Switch input methods or restart Fcitx5 to refresh the tray icon.')
     if backup:
         print('Previous configuration:', backup)
+    if args.mode_hint:
+        print('Shared input-method switching hint:', args.mode_hint)
+    if hint_backup:
+        print('Previous global configuration:', hint_backup)
     if args.no_reload:
         print('Configuration saved; live theme was not reloaded.')
-    elif not reload_theme():
-        return 1
+    else:
+        if args.mode_hint:
+            try:
+                controller_call('ReloadConfig')
+            except (OSError, RuntimeError, subprocess.TimeoutExpired) as error:
+                print(f'Global configuration saved, but reload failed: {error}', file=sys.stderr)
+                return 1
+        if not reload_theme():
+            return 1
     return 0
 
 
