@@ -91,6 +91,33 @@ int main() {
         test::check(!list->candidate(0).text().formatAt(0).test(fcitx::TextFormatFlag::HighLight),
                     "candidate text avoids a second rectangular highlight");
     }
+    // Native defaults: arrows page the picker without moving its text target
+    // or closing at the last page (including the one-page case).
+    const auto pickerText = state->buffer.preeditText();
+    const auto pickerTarget = state->buffer.selectionChar();
+    const auto pickerCommits = ic.commits.size();
+    const int pages = state->buffer.candidatePageCount();
+    test::check(pages >= 1, "picker exposes at least one page");
+    for (int step = 0; step < pages; ++step) {
+        send(fcitx::Key(FcitxKey_Right));
+        test::check(state->buffer.isPicking(), "Right never exits candidate paging");
+        test::check(state->buffer.candidatePage() == (step + 1) % pages + 1,
+                    "Right advances then wraps to first page");
+        test::check(state->buffer.selectionChar() == pickerTarget,
+                    "paging keeps the same correction target");
+        const auto shown = state->buffer.candidates();
+        const auto rendered = ic.inputPanel().candidateList();
+        test::check(rendered && rendered->size() == static_cast<int>(shown.size()),
+                    "page update reaches native candidate list");
+        if (rendered && !shown.empty())
+            test::check_eq(rendered->candidate(0).text().toString(), shown.front(),
+                            "native page contains new candidates");
+    }
+    send(fcitx::Key(FcitxKey_Left));
+    test::check(state->buffer.candidatePage() == pages && state->buffer.isPicking(),
+                "Left wraps to last page without closing picker");
+    test::check_eq(state->buffer.preeditText(), pickerText, "paging preserves composition");
+    test::check(ic.commits.size() == pickerCommits, "paging never commits text");
     test::check(ic.inputPanel().auxUp().empty(), "candidate popup omits duplicate sentence");
     send(fcitx::Key(FcitxKey_Escape));
     test::check(ic.inputPanel().auxUp().empty() && ic.inputPanel().auxDown().empty(),

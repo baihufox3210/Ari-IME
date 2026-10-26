@@ -167,3 +167,14 @@ Shell 語法與 git diff --check 通過。
 - https://github.com/fcitx/fcitx5/blob/5.1.23/src/ui/classic/classicui.cpp
 - https://github.com/fcitx/fcitx5/blob/master/src/tools/remote.cpp
 - https://github.com/fcitx/fcitx5/blob/master/src/modules/dbus/dbusmodule.cpp
+
+## 2026-10-26：候選 Right 翻頁與加寬
+
+- 使用者選擇原生翻頁，不做 Windows 式展開網格。
+- Fcitx 預設 CandidateArrowKeys 改為 ChangePage，保留明確儲存的自訂設定。
+- 預期 Right/Left 在候選內翻頁並循環、目標字與組字不變、不 commit；
+  實際 engine 測試走完整個候選頁循環並驗證前端內容，全部通過。
+- 深／淺主題右側內容留白由 14 增至 30 邏輯像素，約增加 Sans 12 一中文字寬。
+  桌面實際寬度、縮放仍需使用者驗收。
+- 編譯通過，CTest 4/4 通過（27.22 秒）。
+- 游標停滯回報仍待具體應用程式、桌面環境及觸發操作；本次未宣稱修復。

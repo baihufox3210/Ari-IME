@@ -111,9 +111,9 @@ FCITX_CONFIGURATION(
                            ari_ime::CandidateArrowKeysI18NAnnotation>
         candidateArrowKeys{
         this, "CandidateArrowKeys", _("Left/Right in the candidate window"),
-        ari_ime::CandidateArrowKeys::MoveCursor, {}, {},
+        ari_ime::CandidateArrowKeys::ChangePage, {}, {},
         ari_ime::TooltipAnnotation<ari_ime::CandidateArrowKeysI18NAnnotation>(
-            _("What Left and Right do while candidates are open: move to the neighbouring character's candidates, or turn pages within the focused character's list, cycling at both ends like libchewing's own window. Whichever you do not choose stays available — PageUp/PageDown always turn pages, and Escape returns to the caret where Left and Right always move."))};
+            _("Default: Right turns to the next candidate page and Left to the previous page, cycling at both ends without closing the window. Escape returns to composition editing, where Left and Right move the caret. You can instead configure arrows to move between characters; PageUp/PageDown always turn pages."))};
     ari_ime::TooltipOption<ari_ime::CaretAfterPick,
                            ari_ime::CaretAfterPickI18NAnnotation>
         caretAfterPick{

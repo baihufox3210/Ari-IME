@@ -26,6 +26,20 @@
 UTF-8 caret byte offset，避免拆開 emoji、變音符號。句中輸入仍保留尾段。
 右鍵或無效位置走一致的確認流程。不支援點擊回報的 client 仍可使用方向鍵。
 
+## 候選翻頁與寬度
+
+Fcitx 引擎預設 `CandidateArrowKeys=ChangePage`：選單開啟時 Right 下一頁、Left
+上一頁，首尾循環；只有一頁時保持原頁，不退出候選。PageUp/PageDown 仍可翻頁。
+Esc 關閉候選並保留組字，之後 Left/Right 移動文字游標。Enter 確認目前候選。
+不新增展開模式，原本數字／滑鼠選字與應用程式快捷鍵仍有效。
+
+已儲存 `MoveCursor` 的舊設定優先於新預設；請在 Ari 設定的
+「Left/Right in the candidate window」選「Turn candidate pages」並套用。
+
+深、淺主題的候選面板右側額外增加 16 個邏輯像素留白，約為 Sans 12 在
+96 DPI 下一個中文字的寬度。這是整個面板的留白，不會對每個橫排候選重複加寬。
+字型大小不同時不保證恰好一個字寬；實際縮放由 Classic UI 處理。
+
 ## 在 Arch 安裝這個 checkout
 
 請在一般使用者的桌面終端機執行。若先前出現「不是 Git 版本庫」或找不到腳本，
