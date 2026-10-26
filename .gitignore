@@ -30,6 +30,7 @@ debian/*.log
 # portable dictionary converter tests that protect user-facing behavior.
 /test/*
 !/test/test_engine.cpp
+!/test/test_apply_theme.py
 !/test/test_buffer.cpp
 !/test/test_common.h
 !/test/test_convert_vchewing_dictionary.py

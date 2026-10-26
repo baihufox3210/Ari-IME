@@ -1,5 +1,6 @@
 [Addon]
-Name=Ari IME
+Name=Ari Smart Bopomofo
+Name[zh_TW]=Ari 智慧注音
 Comment=Smart mixed Bopomofo/English input method (no mode switching)
 Category=InputMethod
 Version=@PROJECT_VERSION@

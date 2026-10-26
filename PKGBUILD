@@ -8,6 +8,7 @@ url="https://github.com/kaiyasi/Ari-IME"
 license=('LicenseRef-KYL-Noncommercial-1.0')
 depends=('fcitx5' 'hicolor-icon-theme' 'libchewing')
 makedepends=('cmake' 'extra-cmake-modules')
+optdepends=('python: apply Ari themes and convert personal dictionaries')
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
 sha256sums=('SKIP')
 

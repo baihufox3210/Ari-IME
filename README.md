@@ -1,11 +1,17 @@
 # Ari IME
 
+The desktop input-method name is now **Ari Smart Bopomofo / Ari 智慧注音**.
+The `ari-ime` identifier, package and personal data paths remain compatible.
+For rounded dark/light themes, inline-only caret editing and Arch installation,
+see [the modern UI guide](docs/modern-ui.md). After installing, run
+`ari-ime-theme dark` to explicitly select the shared Fcitx Classic UI theme.
+
 A Fcitx5 input method for Traditional Chinese that lets you type **Bopomofo (注音)
 and English together without switching modes**. Every key first shows as itself;
 keys only become Chinese once they form a complete, toned 注音 syllable
 (e.g. `su` stays `su` until a tone arrives — `su3` → 你). The whole pre-edit may
-freely mix English and Chinese in any order (e.g. `acer螢幕`) and is only sent to
-the application when you press **Enter**.
+freely mix English and Chinese in any order (e.g. `acer螢幕`) and is confirmed with
+**Enter** or before handing an editing shortcut to the application.
 
 > 臺灣使用者可先看[快速上手指南](docs/quickstart-zh-TW.md)：安裝後輸入
 > `su3` 得到「你」，再試試在同一段文字中混打英文與注音。

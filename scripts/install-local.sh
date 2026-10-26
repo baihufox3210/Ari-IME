@@ -34,7 +34,7 @@ if [[ ! -f "$build_dir/cmake_install.cmake" ]]; then
     exit 2
 fi
 
-printf 'Installing Ari IME into %s\n' "$install_prefix"
+printf 'Installing Ari Smart Bopomofo into %s\n' "$install_prefix"
 cmake --install "$build_dir" --prefix "$install_prefix"
 
 local_addon_dir="$install_prefix/lib/fcitx5"
@@ -90,8 +90,8 @@ if [[ -z "$fcitx_pid" || ! -r "/proc/$fcitx_pid/maps" ]]; then
 fi
 if ! grep -Fq -- "$local_addon_dir/ari-ime.so" "/proc/$fcitx_pid/maps"; then
     printf 'Fcitx5 did not load the local module: %s/ari-ime.so\n' "$local_addon_dir" >&2
-    printf 'Check that the selected input method is Ari IME and retry\n' >&2
+    printf 'Check that the selected input method is Ari Smart Bopomofo and retry\n' >&2
     exit 1
 fi
 
-printf 'Fcitx5 is using the local Ari IME module (%s)\n' "$local_addon_dir/ari-ime.so"
+printf 'Fcitx5 is using the local Ari Smart Bopomofo module (%s)\n' "$local_addon_dir/ari-ime.so"

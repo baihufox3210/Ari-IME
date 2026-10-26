@@ -145,7 +145,7 @@ install_dependencies() {
         # itself needs. fcitx5 and hicolor-icon-theme are runtime deps, pulled
         # in so the install smoke check and a real try-out both work.
         local packages=(
-            build-essential cmake extra-cmake-modules pkg-config
+            build-essential python3 cmake extra-cmake-modules pkg-config
             libfcitx5core-dev libfcitx5config-dev libfcitx5utils-dev
             fcitx5-modules-dev libchewing3-dev
             fcitx5 hicolor-icon-theme
@@ -158,7 +158,7 @@ install_dependencies() {
             "${packages[@]}"
         ;;
     arch)
-        local packages=(cmake extra-cmake-modules pkg-config fcitx5 libchewing
+        local packages=(base-devel python cmake extra-cmake-modules pkg-config fcitx5 libchewing
             hicolor-icon-theme)
         run "${sudo_cmd[@]}" pacman -S --needed --noconfirm "${packages[@]}"
         ;;

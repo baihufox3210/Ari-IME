@@ -173,6 +173,14 @@ install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/data/ari-ime.svg"
     DESTINATION "${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps"
 )
 
+# Classic UI owns popup positioning, per-output scale and screen boundaries.
+# Theme installation never changes the user's global Classic UI preferences.
+install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/data/themes/ari-dark"
+                  "${CMAKE_CURRENT_SOURCE_DIR}/data/themes/ari-light"
+    DESTINATION "${CMAKE_INSTALL_DATADIR}/fcitx5/themes")
+install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/scripts/apply-theme.py"
+    DESTINATION "${CMAKE_INSTALL_BINDIR}" RENAME ari-ime-theme)
+
 # Explicit post-install helpers. They are commands, not package hooks: users
 # can opt into adding Ari to their Fcitx5 profile, and can reset Ari-owned
 # learning data without needing a source checkout.
@@ -265,6 +273,12 @@ if(BUILD_TESTING)
     ari_ime_enable_sanitizers(test_engine)
     add_test(NAME engine COMMAND test_engine)
     ari_ime_configure_test(engine)
+
+    find_package(Python3 COMPONENTS Interpreter QUIET)
+    if(Python3_Interpreter_FOUND)
+        add_test(NAME apply_theme COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/test/test_apply_theme.py")
+    endif()
 
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test/test_layout.cpp")
         add_executable(test_layout

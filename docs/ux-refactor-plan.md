@@ -55,3 +55,10 @@ Fcitx 呼叫順序不能證明不同 frontend 異步送達順序，必須另做�
 保留候選內 Tab 導覽與 Shift+Delete 刪除學習紀錄；Ctrl+Space 僅接受 Ctrl。
 已加入真實 Fcitx API 整合測試，修正 reconversion 的候選取消與空內容接受生命週期。
 組字內詞組刪除、UI 設定與桌面矩陣仍未完成。
+
+## 現代化 UI 增量
+
+已加入 Fcitx V3 inline 點擊、預設停用重複編輯彈窗、可選候選方向、
+原生 Classic UI 深/淺色圓角主題，以及備份既有設定的顯式套用指令。
+新增 inline caret / emoji / 句中插入 / 主題設定測試，完整回歸通過。
+多螢幕、實際 DPI 與不同 frontend 的外觀仍需桌面驗收；詳見 modern-ui.md。

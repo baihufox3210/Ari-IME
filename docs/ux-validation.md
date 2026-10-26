@@ -127,3 +127,26 @@ Clang 21 的 clang-check 已檢查 8 個原生 source/test 編譯單元及其全
 組態，結束碼 0、沒有診斷。build/ 完整原生建置與 engine 整合測試通過。
 此修正針對已重現的缺少編譯設定問題；未取得使用者編輯器原始完整診斷，
 若仍有錯誤需比對第一個錯誤與該檔案實際使用的 compile command。
+
+## 現代化 UI 與 inline 修正增量
+
+顯示名稱 Ari Smart Bopomofo / Ari 智慧注音；保留內部識別、套件與資料路徑。
+新增 Classic UI 深/淺色九宮格圓角主題、明確套用/備份工具、橫向候選選項。
+編輯預覽改為 opt-in，預設只提供 inline caret；無 inline capability 仍顯示 panel preedit。
+升級至 Fcitx V3，處理 client 回報的 Unicode codepoint 位置；點擊不確認整句，
+而是定位到完整 grapheme 邊界，保留局部插入尾段。右鍵使用正常確認路徑。
+
+新增測試實際發現候選查詢 scratch 被 mergeTail 再次 freeze、使句子重複的錯誤。
+已修正：editing 狀態的 cells 已是完整句子，不再 freeze 該查詢 scratch。
+測試也區分候選內 Enter（選取）與候選外 Enter（確認整句），避免錯誤的測試前置狀態。
+
+最終 CTest 4/4 通過（27.12 秒）；之後補上空 XDG 環境變數路徑案例，
+主題工具 7 項測試全部通過。更新的引擎、Buffer 與整合測試經 Clang 21 檢查無診斷。
+原生建置成功；DESTDIR 安裝到 /tmp/ari-ime-ui-stage，確認兩套主題、圖片、
+ari-ime-theme 與新名稱描述檔皆存在；安裝後 helper 成功在隔離 XDG 路徑套用深色與字型。
+Shell 語法與 git diff --check 通過。
+
+已保存 UI 修改前的 Git checkpoint `/tmp/ari-ime-before-ui-20261026.bundle`。
+設計預覽是 SVG 示意圖，未宣稱為實際桌面截圖；真實 compositor/UI/DPI 驗證仍未執行。
+完整操作與限制見 modern-ui.md；使用者日誌中的 chewing.dat 訊息尚未獲得版本與
+詞典診斷輸出，未據此改寫/清除詞典或全域關閉 libchewing 錯誤記錄。

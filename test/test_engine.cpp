@@ -40,6 +40,92 @@ int main() {
         engine.keyEvent(entry, event);
         return event.filtered();
     };
+    // Inline editing must not open an auxiliary caret/position popup.
+    for (char c : std::string("su3cl3"))
+        send(fcitx::Key(static_cast<fcitx::KeySym>(c)));
+    send(fcitx::Key(FcitxKey_Home));
+    test::check(ic.inputPanel().auxUp().empty() && ic.inputPanel().auxDown().empty(),
+                "default caret editing has no auxiliary popup");
+    test::check(!ic.inputPanel().candidateList(), "caret editing has no candidates");
+    test::check_eq(ic.inputPanel().clientPreedit().toString(), "你好", "composition stays inline");
+    test::check(ic.inputPanel().clientPreedit().cursor() == 0, "Home places inline caret at start");
+    send(fcitx::Key(FcitxKey_Right));
+    test::check(ic.inputPanel().clientPreedit().cursor() == 3,
+                "inline caret uses UTF-8 byte offset after Chinese character");
+    send(fcitx::Key(FcitxKey_Down));
+    auto list = ic.inputPanel().candidateList();
+    test::check(list && list->layoutHint() == fcitx::CandidateLayoutHint::Vertical,
+                "default candidates use vertical layout");
+    test::check(list && list->cursorIndex() == state->buffer.highlight(),
+                "frontend selection follows engine highlight");
+    if (list && list->size() > 0) {
+        test::check(!list->candidate(0).text().formatAt(0).test(fcitx::TextFormatFlag::HighLight),
+                    "candidate text avoids a second rectangular highlight");
+    }
+    test::check(ic.inputPanel().auxUp().empty(), "candidate popup omits duplicate sentence");
+    send(fcitx::Key(FcitxKey_Escape));
+    test::check(ic.inputPanel().auxUp().empty() && ic.inputPanel().auxDown().empty(),
+                "closing candidates returns to inline-only editing");
+
+    // Inline mouse correction uses the real Fcitx action API, not key emulation.
+    auto beforeClick = ic.commits.size();
+    fcitx::InvokeActionEvent click(fcitx::InvokeActionEvent::Action::LeftClick, 1, &ic);
+    engine.invokeAction(entry, click);
+    test::check(click.filtered() && ic.commits.size() == beforeClick,
+                "inline click moves caret without committing");
+    test::check(ic.inputPanel().clientPreedit().cursor() == 3,
+                "click codepoint position converts to UTF-8 caret offset");
+    send(fcitx::Key(FcitxKey_s));
+    send(fcitx::Key(FcitxKey_u));
+    send(fcitx::Key(FcitxKey_3));
+    test::check_eq(state->buffer.preeditText(), "你你好", "typing at clicked caret preserves suffix");
+    fcitx::InvokeActionEvent moveAgain(fcitx::InvokeActionEvent::Action::LeftClick, 0, &ic);
+    engine.invokeAction(entry, moveAgain);
+    test::check_eq(state->buffer.preeditText(), "你你好", "click during insertion preserves parked tail");
+    test::check(state->buffer.caretChar() == 0, "click repositions within entire composition");
+    send(fcitx::Key(FcitxKey_Return));
+    state->buffer.pasteAtCaret("A👩‍💻B");
+    beforeClick = ic.commits.size();
+    fcitx::InvokeActionEvent emojiClick(fcitx::InvokeActionEvent::Action::LeftClick, 2, &ic);
+    engine.invokeAction(entry, emojiClick);
+    test::check(ic.inputPanel().clientPreedit().cursor() == 1,
+                "click inside emoji snaps before whole grapheme");
+    fcitx::InvokeActionEvent afterEmoji(fcitx::InvokeActionEvent::Action::LeftClick, 4, &ic);
+    engine.invokeAction(entry, afterEmoji);
+    test::check(ic.inputPanel().clientPreedit().cursor() == 12,
+                "click after ZWJ emoji maps codepoints to byte offset");
+    test::check(ic.commits.size() == beforeClick, "emoji clicks never commit");
+    fcitx::InvokeActionEvent menu(fcitx::InvokeActionEvent::Action::RightClick, 1, &ic);
+    engine.invokeAction(entry, menu);
+    test::check(menu.filtered() && ic.commits.size() == beforeClick + 1,
+                "context menu accepts composition once");
+    test::check_eq(ic.commits.back(), "A👩‍💻B", "context menu preserves complete emoji text");
+    for (char c : std::string("su3cl3"))
+        send(fcitx::Key(static_cast<fcitx::KeySym>(c)));
+    send(fcitx::Key(FcitxKey_Home));
+
+    fcitx::RawConfig appearance;
+    appearance.setValueByPath("HorizontalCandidates", "True");
+    appearance.setValueByPath("ShowEditingPreview", "True");
+    engine.setConfig(appearance);
+    send(fcitx::Key(FcitxKey_Down));
+    list = ic.inputPanel().candidateList();
+    test::check(list && list->layoutHint() == fcitx::CandidateLayoutHint::Horizontal,
+                "horizontal candidate setting reaches frontend");
+    test::check(!ic.inputPanel().auxUp().empty(), "compatibility preview can be enabled");
+    appearance.setValueByPath("HorizontalCandidates", "False");
+    appearance.setValueByPath("ShowEditingPreview", "False");
+    engine.setConfig(appearance);
+    send(fcitx::Key(FcitxKey_Escape));
+    send(fcitx::Key(FcitxKey_Return));
+    // Clients without inline-preedit capability must still see their text.
+    ic.setCapabilityFlags({fcitx::CapabilityFlag::SurroundingText});
+    send(fcitx::Key(FcitxKey_s));
+    test::check_eq(ic.inputPanel().preedit().toString(), "s", "fallback panel preserves composition");
+    send(fcitx::Key(FcitxKey_Return));
+    ic.setCapabilityFlags({fcitx::CapabilityFlag::Preedit,
+                           fcitx::CapabilityFlag::SurroundingText});
+
     for (const auto &key : {fcitx::Key(FcitxKey_a, fcitx::KeyState::Ctrl),
                             fcitx::Key(FcitxKey_v, fcitx::KeyState::Ctrl),
                             fcitx::Key(FcitxKey_Tab)}) {

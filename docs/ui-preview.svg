@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="440" viewBox="0 0 960 440">
+<title>Ari candidate themes — design preview, not a desktop screenshot</title>
+<rect width="960" height="440" fill="#dfe4ec"/>
+<g font-family="sans-serif">
+<rect x="24" y="24" width="444" height="392" rx="16" fill="#fafbfd"/>
+<text x="48" y="59" font-size="14" fill="#657287">Ari Light · design preview</text>
+<text x="48" y="110" font-size="25" fill="#202733">我今天想要去學校</text>
+<path d="M 48 118 h 201" stroke="#657287" stroke-width="1"/>
+<path d="M 148 86 v 30" stroke="#202733" stroke-width="2"/>
+<rect x="48" y="150" width="240" height="222" rx="12" fill="#fafbfd" stroke="#cdd3de"/>
+<rect x="58" y="160" width="220" height="46" rx="6" fill="#e1ecff"/>
+<text x="73" y="190" font-size="15" fill="#657287">1</text>
+<text x="105" y="190" font-size="23" fill="#202733">學校</text>
+<text x="73" y="238" font-size="15" fill="#657287">2</text>
+<text x="105" y="238" font-size="23" fill="#202733">學效</text>
+<text x="73" y="286" font-size="15" fill="#657287">3</text>
+<text x="105" y="286" font-size="23" fill="#202733">學孝</text>
+<text x="73" y="334" font-size="15" fill="#657287">4</text>
+<text x="105" y="334" font-size="23" fill="#202733">學笑</text>
+<rect x="492" y="24" width="444" height="392" rx="16" fill="#202227"/>
+<text x="516" y="59" font-size="14" fill="#9aa6b8">Ari Dark · design preview</text>
+<text x="516" y="110" font-size="25" fill="#eef1f7">我今天想要去學校</text>
+<path d="M 516 118 h 201" stroke="#9aa6b8" stroke-width="1"/>
+<path d="M 616 86 v 30" stroke="#eef1f7" stroke-width="2"/>
+<rect x="516" y="150" width="240" height="222" rx="12" fill="#202227" stroke="#41454e"/>
+<rect x="526" y="160" width="220" height="46" rx="6" fill="#2a415f"/>
+<text x="541" y="190" font-size="15" fill="#9aa6b8">1</text>
+<text x="573" y="190" font-size="23" fill="#eef1f7">學校</text>
+<text x="541" y="238" font-size="15" fill="#9aa6b8">2</text>
+<text x="573" y="238" font-size="23" fill="#eef1f7">學效</text>
+<text x="541" y="286" font-size="15" fill="#9aa6b8">3</text>
+<text x="573" y="286" font-size="23" fill="#eef1f7">學孝</text>
+<text x="541" y="334" font-size="15" fill="#9aa6b8">4</text>
+<text x="573" y="334" font-size="23" fill="#eef1f7">學笑</text>
+</g></svg>

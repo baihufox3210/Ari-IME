@@ -27,12 +27,12 @@ namespace {
 class AriImeCandidate : public fcitx::CandidateWord {
 public:
     explicit AriImeCandidate(
-        const std::string &text, bool highlighted,
+        const std::string &text,
         std::function<void(fcitx::InputContext *)> onSelect)
         : onSelect_(std::move(onSelect)) {
-        setText(fcitx::Text(text, highlighted
-                                      ? fcitx::TextFormatFlag::HighLight
-                                      : fcitx::TextFormatFlag::NoFlag));
+        // The frontend paints one selection background via the list cursor.
+        // A second per-text highlight would create a rectangle inside the row.
+        setText(fcitx::Text(text));
     }
     void select(fcitx::InputContext *ic) const override {
         if (onSelect_) {
@@ -173,22 +173,16 @@ void AriImeEngine::updateUI(fcitx::InputContext *ic, Buffer &buffer) {
     const std::string preeditStr = buffer.preeditText();
     const int selChar = buffer.selectionChar();
     const int caretChar = buffer.caretChar();
-    // The caret follows the insertion point while typing mid-string (selChar is
-    // -1 then); the aux-line highlight below still keys off selChar.
+    // The application owns the inline caret, including mid-string insertion.
     setPreedit(ic, buildPreedit(preeditStr, caretChar));
 
-    // The inline pre-edit above is rendered by the client application, which may
-    // ignore per-segment styling (some paint the whole pre-edit reversed). So we
-    // ALSO show the string in fcitx's own auxiliary line during selection, with
-    // only the selected character highlighted — fcitx draws this with its own
-    // theme, so the single-character mark is reliable regardless of the client.
-    if (buffer.isEditing()) {
+    // Do not open a second popup just to draw an artificial caret. Clients
+    // without inline preedit still receive panel preedit via setPreedit().
+    if (*config_.showEditingPreview && buffer.isEditing()) {
         const int position = buffer.isPicking() ? selChar : caretChar;
         panel.setAuxUp(
             buildEditingPreview(preeditStr, position, buffer.isPicking()));
     } else if (*config_.showPendingZhuyin) {
-        // While an incomplete bopomofo syllable is pending, show its symbols
-        // in Fcitx5's own auxiliary panel above the caret.
         const std::string hint = buffer.pendingSyllableHint();
         if (!hint.empty()) {
             panel.setAuxUp(fcitx::Text(hint));
@@ -197,7 +191,7 @@ void AriImeEngine::updateUI(fcitx::InputContext *ic, Buffer &buffer) {
 
     const int totalChars = utf8Count(preeditStr);
     std::string positionText;
-    if (buffer.isEditing()) {
+    if (*config_.showEditingPreview && buffer.isEditing()) {
         if (buffer.isPicking()) {
             positionText = "選字 " + std::to_string(selChar + 1) + "/" +
                            std::to_string(totalChars);
@@ -211,7 +205,9 @@ void AriImeEngine::updateUI(fcitx::InputContext *ic, Buffer &buffer) {
     if (!candidates.empty()) {
         auto list = std::make_unique<fcitx::CommonCandidateList>();
         list->setPageSize(ari_ime::kCandPerPage);
-        list->setLayoutHint(fcitx::CandidateLayoutHint::Vertical);
+        list->setLayoutHint(*config_.horizontalCandidates
+                                ? fcitx::CandidateLayoutHint::Horizontal
+                                : fcitx::CandidateLayoutHint::Vertical);
         fcitx::KeyList selectionKeys;
         for (int i = 0; i < ari_ime::kCandPerPage; ++i) {
             selectionKeys.emplace_back(static_cast<fcitx::KeySym>(FcitxKey_1 + i));
@@ -221,7 +217,7 @@ void AriImeEngine::updateUI(fcitx::InputContext *ic, Buffer &buffer) {
         for (int i = 0; i < static_cast<int>(candidates.size()); ++i) {
             const std::string candidateText = candidates[i];
             list->append(std::make_unique<AriImeCandidate>(
-                candidateText, i == hl,
+                candidateText,
                 [this, i, candidateText](fcitx::InputContext *ic) {
                     auto *state = ic->propertyFor(&factory_);
                     KeyResult result =
@@ -425,6 +421,51 @@ void AriImeEngine::keyEvent(const fcitx::InputMethodEntry &,
     if (result.handled) {
         keyEvent.filterAndAccept();
     }
+}
+
+void AriImeEngine::invokeActionImpl(const fcitx::InputMethodEntry &,
+                                      fcitx::InvokeActionEvent &event) {
+    auto *ic = event.inputContext();
+    auto *state = ic->propertyFor(&factory_);
+    state->buffer.setLearningAllowed(
+        *config_.autoLearn &&
+        !ic->capabilityFlags().test(fcitx::CapabilityFlag::PasswordOrSensitive));
+    const auto text = state->buffer.preeditText();
+    // Fcitx InvokeAction uses Unicode code points (not UTF-8 bytes or UTF-16).
+    // Snap clicks inside combining/ZWJ sequences to the preceding boundary.
+    if (event.action() == fcitx::InvokeActionEvent::Action::LeftClick &&
+        event.cursor() >= 0 && !text.empty()) {
+        std::size_t byte = 0;
+        int codepoints = 0;
+        while (codepoints < event.cursor() && byte < text.size()) {
+            byte += ari_ime::unicode::decode(text, byte).length;
+            ++codepoints;
+        }
+        if (codepoints == event.cursor()) {
+            int position = 0;
+            std::size_t end = 0;
+            for (const auto &cluster : utf8Chars(text)) {
+                end += cluster.size();
+                if (end > byte) {
+                    break;
+                }
+                ++position;
+            }
+            auto result = state->buffer.moveCaretTo(position);
+            if (result.handled) {
+                applyResult(ic, state->buffer, result);
+                event.filter();
+                return;
+            }
+        }
+    }
+    // Context menus or clicks outside our range finish composition using the
+    // normal learning/handoff path, including acceptance of an empty correction.
+    auto result = state->buffer.commitForApplication();
+    applyResult(ic, state->buffer, result);
+    state->reconversionActive = false;
+    state->reconversionText.clear();
+    event.filter();
 }
 
 void AriImeEngine::reset(const fcitx::InputMethodEntry &,

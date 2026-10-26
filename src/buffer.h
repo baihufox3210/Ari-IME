@@ -71,6 +71,8 @@ public:
     // Commit displayed composition, then let the original application key pass.
     // The portable client caret lands at the end of the committed text.
     KeyResult commitForApplication();
+    // Move an inline-preedit click to a grapheme boundary, without committing.
+    KeyResult moveCaretTo(int position);
     // Clear composition/candidates/caret state. User mode toggles such as
     // forced English persist until the user toggles them explicitly.
     void reset();

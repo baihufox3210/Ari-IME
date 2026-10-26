@@ -26,7 +26,7 @@ Ubuntu／Debian 使用者可從 [GitHub Releases](https://github.com/kaiyasi/Ari
 ari-ime-enable --make-default
 ```
 
-安裝後重新啟動 Fcitx5，並在輸入法清單選取 **Ari IME**。其他發行版、NixOS
+安裝後重新啟動 Fcitx5，並在輸入法清單選取 **Ari 智慧注音 / Ari Smart Bopomofo**。其他發行版、NixOS
 和手動建置方式請看[完整安裝說明](../README.md#install-on-arch-linux)。
 
 ## 先試三件事
@@ -95,3 +95,11 @@ ari-ime-dict import ari-phrases.tsv
 版本。命令不會讀取目前 Fcitx5 組字內容；請不要附上私人詞庫或密碼欄位文字。
 
 完整功能、安裝方式和開發說明請看[英文 README](../README.md)。
+
+## 深色與簡潔組字介面
+
+安裝新版後執行 `ari-ime-theme dark`，或用 `auto` 跟隨桌面配色。
+主題適用所有使用 Fcitx Classic UI 的輸入法，套用前會備份設定。
+組字游標預設使用應用程式內的插入線；只有選字時才開候選，
+需要相容顯示時可在 Ari 設定開啟 Show separate editing preview。
+詳見[現代化 UI 與 Arch 安裝步驟](modern-ui.md)。

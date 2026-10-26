@@ -137,6 +137,14 @@ FCITX_CONFIGURATION(
         this, "AutoLearn", _("Learn accepted choices locally"), true, {}, {},
         ari_ime::TooltipAnnotation<>(
             _("Adapt the personal dictionary to the Chinese choices you accept. Turn this off to keep it unchanged; sensitive fields never learn regardless of this setting."))};
+    ari_ime::TooltipOption<bool> horizontalCandidates{
+        this, "HorizontalCandidates", _("Horizontal candidate list"), false, {}, {},
+        ari_ime::TooltipAnnotation<>(
+            _("Arrange candidates in a row instead of a column. Number keys and candidate navigation keep the same meaning."))};
+    ari_ime::TooltipOption<bool> showEditingPreview{
+        this, "ShowEditingPreview", _("Show separate editing preview"), false, {}, {},
+        ari_ime::TooltipAnnotation<>(
+            _("Repeat the composition and caret position in the candidate panel. Off uses the application's inline caret only; enable for clients that do not display the composition caret correctly."))};
     ari_ime::TooltipOption<bool> showStatusLine{
         this, "ShowStatusLine", _("Show composition status"), false, {}, {},
         ari_ime::TooltipAnnotation<>(
@@ -165,7 +173,7 @@ public:
     std::string reconversionText;
 };
 
-class AriImeEngine : public fcitx::InputMethodEngineV2 {
+class AriImeEngine : public fcitx::InputMethodEngineV3 {
 public:
     explicit AriImeEngine(fcitx::Instance *instance);
 
@@ -173,6 +181,9 @@ public:
                   fcitx::KeyEvent &keyEvent) override;
     void reset(const fcitx::InputMethodEntry &entry,
                fcitx::InputContextEvent &event) override;
+
+    void invokeActionImpl(const fcitx::InputMethodEntry &entry,
+                          fcitx::InvokeActionEvent &event) override;
 
     // --- Configuration (fcitx5-configtool) ---
     const fcitx::Configuration *getConfig() const override { return &config_; }

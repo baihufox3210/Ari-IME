@@ -1036,6 +1036,18 @@ int Buffer::caretChar() const {
 // Top-level dispatch
 // ---------------------------------------------------------------------------
 
+KeyResult Buffer::moveCaretTo(int position) {
+    const auto text = preeditText();
+    if (text.empty() || position < 0 || position > utf8Count(text)) {
+        return {};
+    }
+    mergeTail();
+    exitSelection();
+    selecting_ = true;
+    caretPos_ = position;
+    return {true, false, {}, true};
+}
+
 KeyResult Buffer::commitForApplication() {
     auto result = handleEnter();
     result.handled = false;
@@ -2663,7 +2675,12 @@ KeyResult Buffer::forgetHighlightedCandidate() {
 }
 
 void Buffer::mergeTail() {
-    freezeAll(); // fold the live typing at the insertion point into cells_ first
+    // In editing mode cells_ already hold the whole sentence; zhuyin_ is a
+    // candidate lookup scratch buffer. Freezing it would append the sentence
+    // again when a mouse click repositions the caret or a shortcut commits.
+    if (!selecting_) {
+        freezeAll();
+    }
     if (!tail_.empty()) {
         cells_.insert(cells_.end(), tail_.begin(), tail_.end());
         tail_.clear();

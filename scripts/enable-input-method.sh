@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Add Ari IME to the user's Fcitx5 profile without touching the package
+# Add Ari Smart Bopomofo to the user's Fcitx5 profile without touching the package
 # installation or any other input-method entry. This is deliberately an
 # explicit command: distribution package installation must not silently change
 # the user's active input method.
@@ -10,12 +10,12 @@ usage() {
     cat <<'EOF'
 Usage: ari-ime-enable [options]
 
-Add Ari IME to the first Fcitx5 input-method group. The profile is backed up
+Add Ari Smart Bopomofo to the first Fcitx5 input-method group. The profile is backed up
 before it is changed. By default the current default input method is kept;
 use --make-default when Ari should become the group's default.
 
 Options:
-  --make-default  make Ari IME the group's default input method
+  --make-default  make Ari Smart Bopomofo the group's default input method
   --yes            do not ask for confirmation before changing the profile
   --dry-run        show the planned change without writing or restarting Fcitx5
   --no-restart     do not reload Fcitx5 after changing the profile
@@ -190,15 +190,15 @@ if [[ "$ari_present" -eq 0 || "$set_default_needed" -eq 1 ||
 fi
 
 if [[ "$ari_present" -eq 1 ]]; then
-    printf 'Ari IME is already present in %s\n' "$profile"
+    printf 'Ari Smart Bopomofo is already present in %s\n' "$profile"
 else
-    printf 'Ari IME will be added to [%s/Items/%s]\n' "$group_section" "$next_item"
+    printf 'Ari Smart Bopomofo will be added to [%s/Items/%s]\n' "$group_section" "$next_item"
 fi
 if [[ "$make_default" -eq 1 ]]; then
     if [[ "$set_default_needed" -eq 1 || ! -s "$profile" ]]; then
-        printf '%s\n' 'Ari IME will become the group default (--make-default).'
+        printf '%s\n' 'Ari Smart Bopomofo will become the group default (--make-default).'
     else
-        printf '%s\n' 'Ari IME is already the group default.'
+        printf '%s\n' 'Ari Smart Bopomofo is already the group default.'
     fi
 fi
 if [[ "$group_order_needed" -eq 1 ]]; then
@@ -394,7 +394,7 @@ fi
 
 if ! fcitx5-remote -s ari-ime >/dev/null 2>&1; then
     printf '%s\n' \
-        'Fcitx5 is running, but Ari IME could not be selected.' \
+        'Fcitx5 is running, but Ari Smart Bopomofo could not be selected.' \
         'Verify that the package installed ari-ime.so and retry.' \
         >&2
     exit 1
@@ -406,4 +406,4 @@ if [[ "$active_im" != "ari-ime" ]]; then
         "${active_im:-<none>}" >&2
     exit 1
 fi
-printf 'Ari IME is active (%s)\n' "$active_im"
+printf 'Ari Smart Bopomofo is active (%s)\n' "$active_im"
