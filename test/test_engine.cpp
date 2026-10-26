@@ -65,6 +65,9 @@ int main() {
     fcitx::InputMethodEntry entry("ari-ime", "Ari", "zh_TW", "ari-ime");
     test::check_eq(engine.subModeIcon(entry, ic), std::filesystem::absolute(icon).string(),
                     "SNI icon is an absolute PNG path independent of the shell theme");
+    int panelUpdates = 0;
+    auto uiWatch = instance.watchEvent(fcitx::EventType::InputContextUpdateUI,
+        fcitx::EventWatcherPhase::Default, [&](fcitx::Event &) { ++panelUpdates; });
     auto *state = ic.propertyAs<AriImeState>("ari_imeState");
     auto send = [&](fcitx::Key key, bool release = false) {
         fcitx::KeyEvent event(&ic, key, release);
@@ -104,6 +107,15 @@ int main() {
     test::check(!ic.inputPanel().candidateList(), "caret editing has no candidates");
     test::check_eq(ic.inputPanel().clientPreedit().toString(), "你好", "composition stays inline");
     test::check(ic.inputPanel().clientPreedit().cursor() == 0, "Home places inline caret at start");
+    const auto boundaryUpdates = ic.updates;
+    const auto boundaryPanelUpdates = panelUpdates;
+    send(fcitx::Key(FcitxKey_Home));
+    send(fcitx::Key(FcitxKey_Left));
+    test::check(ic.updates == boundaryUpdates,
+                "stationary caret does not resend the same client composition");
+    test::check(panelUpdates == boundaryPanelUpdates,
+                "stationary caret does not repaint the panel or reset hover");
+
     send(fcitx::Key(FcitxKey_Right));
     test::check(ic.inputPanel().clientPreedit().cursor() == 3,
                 "inline caret uses UTF-8 byte offset after Chinese character");
@@ -116,6 +128,22 @@ int main() {
     if (list && list->size() > 0) {
         test::check(!list->candidate(0).text().formatAt(0).test(fcitx::TextFormatFlag::HighLight),
                     "candidate text avoids a second rectangular highlight");
+    }
+    const auto pickingUpdates = ic.updates;
+    const auto pickingCursor = ic.inputPanel().clientPreedit().cursor();
+    if (list && list->size() > 1) {
+        send(fcitx::Key(FcitxKey_Down));
+        test::check(ic.updates == pickingUpdates,
+                    "candidate highlight does not restart client preedit");
+        test::check(ic.inputPanel().candidateList() == list,
+                    "moving highlight retains candidate list identity");
+        test::check(ic.inputPanel().candidateList()->cursorIndex() == 1,
+                    "retained candidate list updates its highlighted row");
+        test::check(ic.inputPanel().clientPreedit().cursor() == pickingCursor,
+                    "candidate highlight preserves composition caret");
+        send(fcitx::Key(FcitxKey_Up));
+        test::check(ic.updates == pickingUpdates,
+                    "reverse highlight does not resend client preedit");
     }
     // Native defaults: arrows page the picker without moving its text target
     // or closing at the last page (including the one-page case).

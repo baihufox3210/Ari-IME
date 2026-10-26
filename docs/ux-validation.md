@@ -255,3 +255,24 @@ https://github.com/qt/qtbase/blob/6.10/src/gui/image/qicon.cpp
 - X11 backend 同樣對 marked-text selection 傳 None，不將改用 XWayland 宣稱為解法。
 - 依使用者要求移除 Zed 補丁、基準版本檔與編譯步驟；Zed 修改改由獨立 fork
   處理，Ari 保留此處的協定相容性調查記錄。
+
+## 2026-10-26：選字反白閃爍的重複刷新路徑
+
+- updateUI 原先每次 panel.reset、建立候選清單，並無條件 updatePreedit。
+  Fcitx 對非空 preedit 不會自動略過相同內容；Classic UI 的更新會清除 hoverIndex。
+  因而選字索引變動會連帶重送應用程式的 marked text。
+- 先新增回歸，原版重現 5 項失敗：不動的游標仍更新 client／panel、候選反白
+  正反移動都重送組字、同頁清單被重建。
+- 現比較文字、每段格式與 UTF-8 cursor，只在 client preedit 有變化時更新。
+  由 Ari 擁有、同一個字／同一頁／同一內容／同一排列的清單只更新選取索引。
+  翻頁或目標改變重新建立，關閉選字明確清空；面板實際不變時不重繪。
+- 不再整體 reset panel，分別更新 inline/fallback preedit、aux 與候選。
+  空資訊列維持真正空 Text，避免出現殘留面板。
+- 實際 engine 前端回呼次數、UI 事件、清單身份與選取索引測試通過；原游標移動、
+  翻頁、滑鼠選字、提交清空與 fallback 測試也通過。
+- 編譯及 CTest 4/4 通過（27.25 秒）。本環境無桌面，未目視驗證閃爍完全消失。
+  待使用者確認閃爍對象是候選、組字還是應用程式內拖曳反白。
+
+來源：
+https://github.com/fcitx/fcitx5/blob/5.1.23/src/lib/fcitx/inputcontext.cpp
+https://github.com/fcitx/fcitx5/blob/5.1.23/src/ui/classic/inputwindow.cpp

@@ -47,6 +47,15 @@ private:
     std::function<void(fcitx::InputContext *)> onSelect_;
 };
 
+// Reuse only lists owned by Ari for the same correction target and page.
+// Other engines and delayed page clicks must not inherit our callbacks.
+class AriImeCandidateList final : public fcitx::CommonCandidateList {
+public:
+    AriImeCandidateList(int target, int page) : target(target), page(page) {}
+    const int target;
+    const int page;
+};
+
 // Byte offset where the `n`-th grapheme cluster (0-based) starts.
 std::size_t utf8Offset(const std::string &s, int n) {
     return ari_ime::unicode::graphemeOffset(s, n);
@@ -140,12 +149,40 @@ std::string statusText(const Buffer &buffer) {
     return out;
 }
 
-void setPreedit(fcitx::InputContext *ic, fcitx::Text preedit) {
-    if (ic->capabilityFlags().test(fcitx::CapabilityFlag::Preedit)) {
-        ic->inputPanel().setClientPreedit(preedit);
-    } else {
-        ic->inputPanel().setPreedit(preedit);
+bool sameText(const fcitx::Text &left, const fcitx::Text &right) {
+    if (left.textLength() == 0 && right.textLength() == 0) {
+        return true;
     }
+    if (left.cursor() != right.cursor() || left.size() != right.size()) {
+        return false;
+    }
+    for (std::size_t i = 0; i < left.size(); ++i) {
+        if (left.stringAt(i) != right.stringAt(i) ||
+            left.formatAt(i) != right.formatAt(i)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Return whether the client-visible composition changed. Candidate navigation
+// must not resend identical marked text: clients may restart selection/caret
+// animation or redraw the whole marked range for each preedit event.
+bool setPreedit(fcitx::InputContext *ic, const fcitx::Text &preedit) {
+    auto &panel = ic->inputPanel();
+    const bool inlinePreedit =
+        ic->capabilityFlags().test(fcitx::CapabilityFlag::Preedit);
+    const fcitx::Text empty;
+    const auto &clientText = inlinePreedit ? preedit : empty;
+    const auto &panelText = inlinePreedit ? empty : preedit;
+    const bool clientChanged = !sameText(panel.clientPreedit(), clientText);
+    if (clientChanged) {
+        panel.setClientPreedit(clientText);
+    }
+    if (!sameText(panel.preedit(), panelText)) {
+        panel.setPreedit(panelText);
+    }
+    return clientChanged;
 }
 
 } // namespace
@@ -179,24 +216,27 @@ ari_ime::KeyboardLayout AriImeEngine::applyConfig() {
 
 void AriImeEngine::updateUI(fcitx::InputContext *ic, Buffer &buffer) {
     auto &panel = ic->inputPanel();
-    panel.reset();
+    const auto previousPanelPreedit = panel.preedit();
+    fcitx::Text auxUp;
+    fcitx::Text auxDown;
+    bool candidatesChanged = false;
 
     const std::string preeditStr = buffer.preeditText();
     const int selChar = buffer.selectionChar();
     const int caretChar = buffer.caretChar();
     // The application owns the inline caret, including mid-string insertion.
-    setPreedit(ic, buildPreedit(preeditStr, caretChar));
+    const bool clientChanged =
+        setPreedit(ic, buildPreedit(preeditStr, caretChar));
 
     // Do not open a second popup just to draw an artificial caret. Clients
     // without inline preedit still receive panel preedit via setPreedit().
     if (*config_.showEditingPreview && buffer.isEditing()) {
         const int position = buffer.isPicking() ? selChar : caretChar;
-        panel.setAuxUp(
-            buildEditingPreview(preeditStr, position, buffer.isPicking()));
+        auxUp = buildEditingPreview(preeditStr, position, buffer.isPicking());
     } else if (*config_.showPendingZhuyin) {
         const std::string hint = buffer.pendingSyllableHint();
         if (!hint.empty()) {
-            panel.setAuxUp(fcitx::Text(hint));
+            auxUp = fcitx::Text(hint);
         }
     }
 
@@ -214,34 +254,52 @@ void AriImeEngine::updateUI(fcitx::InputContext *ic, Buffer &buffer) {
 
     auto candidates = buffer.candidates();
     if (!candidates.empty()) {
-        auto list = std::make_unique<fcitx::CommonCandidateList>();
-        list->setPageSize(ari_ime::kCandPerPage);
-        list->setLayoutHint(*config_.horizontalCandidates
+        const auto layout = *config_.horizontalCandidates
                                 ? fcitx::CandidateLayoutHint::Horizontal
-                                : fcitx::CandidateLayoutHint::Vertical);
-        fcitx::KeyList selectionKeys;
-        for (int i = 0; i < ari_ime::kCandPerPage; ++i) {
-            selectionKeys.emplace_back(static_cast<fcitx::KeySym>(FcitxKey_1 + i));
-        }
-        list->setSelectionKey(selectionKeys);
+                                : fcitx::CandidateLayoutHint::Vertical;
         const auto displayed = ari_ime::candidateDisplayTexts(
             candidates, *config_.horizontalCandidates);
-        int hl = buffer.highlight();
-        for (int i = 0; i < static_cast<int>(candidates.size()); ++i) {
-            const std::string candidateText = candidates[i];
-            list->append(std::make_unique<AriImeCandidate>(
-                displayed[i],
-                [this, i, candidateText](fcitx::InputContext *ic) {
-                    auto *state = ic->propertyFor(&factory_);
-                    KeyResult result =
-                        state->buffer.selectCandidate(i, candidateText);
-                    applyResult(ic, state->buffer, result);
-                }));
+        auto list = std::dynamic_pointer_cast<AriImeCandidateList>(
+            panel.candidateList());
+        bool reuse = list && list->target == selChar &&
+                     list->page == buffer.candidatePage() && !clientChanged &&
+                     sameText(previousPanelPreedit, panel.preedit()) &&
+                     list->layoutHint() == layout &&
+                     list->size() == static_cast<int>(displayed.size());
+        for (int i = 0; reuse && i < static_cast<int>(displayed.size()); ++i) {
+            reuse = list->candidate(i).text().toString() == displayed[i];
         }
-        if (hl >= 0 && hl < static_cast<int>(candidates.size())) {
+        if (!reuse) {
+            auto replacement = std::make_unique<AriImeCandidateList>(
+                selChar, buffer.candidatePage());
+            replacement->setPageSize(ari_ime::kCandPerPage);
+            replacement->setLayoutHint(layout);
+            fcitx::KeyList selectionKeys;
+            for (int i = 0; i < ari_ime::kCandPerPage; ++i) {
+                selectionKeys.emplace_back(static_cast<fcitx::KeySym>(FcitxKey_1 + i));
+            }
+            replacement->setSelectionKey(selectionKeys);
+            for (int i = 0; i < static_cast<int>(candidates.size()); ++i) {
+                const std::string candidateText = candidates[i];
+                replacement->append(std::make_unique<AriImeCandidate>(
+                    displayed[i],
+                    [this, i, candidateText](fcitx::InputContext *ic) {
+                        auto *state = ic->propertyFor(&factory_);
+                        KeyResult result =
+                            state->buffer.selectCandidate(i, candidateText);
+                        applyResult(ic, state->buffer, result);
+                    }));
+            }
+            panel.setCandidateList(std::move(replacement));
+            list = std::dynamic_pointer_cast<AriImeCandidateList>(
+                panel.candidateList());
+            candidatesChanged = true;
+        }
+        const int hl = buffer.highlight();
+        if (list->cursorIndex() != hl) {
             list->setGlobalCursorIndex(hl);
+            candidatesChanged = true;
         }
-        panel.setCandidateList(std::move(list));
 
         int page = buffer.candidatePage();
         int pages = buffer.candidatePageCount();
@@ -256,24 +314,37 @@ void AriImeEngine::updateUI(fcitx::InputContext *ic, Buffer &buffer) {
         }
         // Reserve room after the entire page-information row, including
         // optional position/status text, independently of candidate length.
-        const std::string auxDown = joinAuxParts(auxParts) +
-                                    (pages > 1 ? "\u3000" : "");
-        if (!auxDown.empty()) {
-            panel.setAuxDown(fcitx::Text(auxDown));
+        const auto footer = joinAuxParts(auxParts) +
+                            (pages > 1 ? "\u3000" : "");
+        if (!footer.empty()) {
+            auxDown = fcitx::Text(footer);
         }
     } else {
+        if (panel.candidateList()) {
+            panel.setCandidateList(nullptr);
+            candidatesChanged = true;
+        }
         std::vector<std::string> auxParts{positionText};
         if (!preeditStr.empty() && *config_.showStatusLine) {
             auxParts.push_back(statusText(buffer));
         }
-        const std::string auxDown = joinAuxParts(auxParts);
-        if (!auxDown.empty()) {
-            panel.setAuxDown(fcitx::Text(auxDown));
+        const auto footer = joinAuxParts(auxParts);
+        if (!footer.empty()) {
+            auxDown = fcitx::Text(footer);
         }
     }
 
-    ic->updatePreedit();
-    ic->updateUserInterface(fcitx::UserInterfaceComponent::InputPanel);
+    const bool panelChanged = candidatesChanged || clientChanged ||
+        !sameText(previousPanelPreedit, panel.preedit()) ||
+        !sameText(panel.auxUp(), auxUp) || !sameText(panel.auxDown(), auxDown);
+    panel.setAuxUp(std::move(auxUp));
+    panel.setAuxDown(std::move(auxDown));
+    if (clientChanged) {
+        ic->updatePreedit();
+    }
+    if (panelChanged) {
+        ic->updateUserInterface(fcitx::UserInterfaceComponent::InputPanel);
+    }
 }
 
 bool AriImeEngine::beginReconversion(fcitx::InputContext *ic,
