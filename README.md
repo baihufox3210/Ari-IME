@@ -152,9 +152,13 @@ Emscripten build inputs, browser demo and native/API smoke tests.
 | Backspace (in selection) | delete the focused character and leave selection |
 | Esc | clear pre-edit, or close selection/candidates first |
 | Enter | commit the whole pre-edit to the application |
-| Ctrl+V / Shift+Insert | paste clipboard text at the current pre-edit caret, with control/newline-like separators folded into visible spaces and zero-width artifacts removed |
-| Ctrl+Z | restore the most recent candidate choice while it is still the latest edit |
-| Ctrl+Space | toggle forced English mode |
+| Ctrl+V / Shift+Insert | commit the displayed composition, then let the application paste normally (client caret lands at the end) |
+| Ctrl+Z | restore the latest candidate choice; otherwise commit and hand off application undo |
+| Ctrl+C / Ctrl+X / Ctrl+A / Ctrl+Shift+Z / Ctrl+Backspace | commit composition, then let the application handle the shortcut |
+| Shift+arrows / Shift+Home / Shift+End / Shift+PageUp / Shift+PageDown | commit composition, then let the application select text from the committed end |
+| Tab / Shift+Tab (outside candidates) | commit composition, then let the application change focus |
+| Shift+Delete (outside candidates) | commit composition, then let the application cut |
+| Ctrl+Space | toggle forced English mode (additional modifiers stay available to applications) |
 
 Numeric-keypad navigation keys are treated like their main-keyboard equivalents
 when NumLock is off. Numeric-keypad digits remain literal digits when NumLock is
@@ -301,9 +305,8 @@ sudo apt install \
   fcitx5-modules-dev libchewing3-dev hicolor-icon-theme
 ```
 
-`fcitx5-modules-dev` provides the clipboard module headers (`clipboard_public.h`,
-`Fcitx5ModuleClipboard`) that the Ctrl+V paste path links against. Ubuntu builds
-against whatever libchewing the distribution ships (for example libchewing 0.8.x
+Clipboard shortcuts are handled by the application after composition is committed;
+no clipboard module headers are required. Ubuntu builds against whatever libchewing the distribution ships (for example libchewing 0.8.x
 on Ubuntu 24.04); candidate ordering can differ slightly between distributions —
 see [ISSUES.md](ISSUES.md). No source changes
 are needed: the build uses `GNUInstallDirs`, so the module installs to the
@@ -673,3 +676,18 @@ export ARI_IME_USER_DATA_DIR=/tmp/ari-ime-dev-userdata
 ## License
 
 KYL Noncommercial License 1.0. Noncommercial use is permitted; commercial use, including internal use by a for-profit entity, requires a separate written agreement. See [LICENSE](LICENSE) and [LICENSING.md](LICENSING.md).
+
+### C++ editor diagnostics
+
+CMake exports `build/compile_commands.json`; the checked-in `.clangd` points
+to this directory so diagnostics use the same Fcitx/libchewing headers and
+C++20 flags as the native build. After installing the build dependencies, run:
+
+```sh
+cmake -S . -B build -DBUILD_TESTING=ON
+cmake --build build -j
+```
+
+Then restart the editor's C++ language server if it still shows cached errors.
+Do not add `wasm/include` to native build include paths: those headers are
+compatibility shims for the headless target.

@@ -10,6 +10,3 @@ OnDemand=True
 
 [Addon/Dependencies]
 0=core
-
-[Addon/OptionalDependencies]
-0=clipboard

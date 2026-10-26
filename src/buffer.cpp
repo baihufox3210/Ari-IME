@@ -1036,12 +1036,22 @@ int Buffer::caretChar() const {
 // Top-level dispatch
 // ---------------------------------------------------------------------------
 
+KeyResult Buffer::commitForApplication() {
+    auto result = handleEnter();
+    result.handled = false;
+    result.applicationHandoff = true;
+    return result;
+}
+
 KeyResult Buffer::handleKey(const fcitx::Key &key) {
     // Ctrl+Space toggles forced pure-English mode (no 注音 interpretation). Like
     // every other transition it folds the live tail into cells_ but never
-    // commits; the pre-edit is still only flushed on Enter.
+    // commits; Enter and application shortcuts flush the pre-edit.
     if (normalizeKeySym(key.sym()) == FcitxKey_space &&
-        key.states().test(fcitx::KeyState::Ctrl)) {
+        key.states().test(fcitx::KeyState::Ctrl) &&
+        !key.states().testAny(fcitx::KeyStates{
+            fcitx::KeyState::Shift, fcitx::KeyState::Alt,
+            fcitx::KeyState::Super})) {
         if (selecting_) {
             exitSelection();
         }
@@ -1081,6 +1091,26 @@ KeyResult Buffer::handleAuto(const fcitx::Key &key) {
          (shiftedApostrophe ||
           (sym >= 33 && sym <= 126 &&
            !chinesePunctShortcut(static_cast<char>(sym)).empty())));
+
+    // Clipboard and client selection are application operations. Never read
+    // clipboard contents here: rich text, newlines and terminal paste belong
+    // to the client. Commit first, and leave exactly the original key unhandled.
+    const bool shift = key.states().test(fcitx::KeyState::Shift);
+    const bool clientTab = !isPicking() &&
+        (sym == FcitxKey_Tab || sym == FcitxKey_ISO_Left_Tab);
+    const bool clientCut = !isPicking() && shift && sym == FcitxKey_Delete;
+    const bool shiftedClientKey = shift &&
+        (sym == FcitxKey_Insert || sym == FcitxKey_KP_Insert ||
+         sym == FcitxKey_Left || sym == FcitxKey_Right ||
+         sym == FcitxKey_Up || sym == FcitxKey_Down ||
+         sym == FcitxKey_Home || sym == FcitxKey_Begin ||
+         sym == FcitxKey_End || sym == FcitxKey_Page_Up ||
+         sym == FcitxKey_Page_Down);
+    if (!isModifierOnlyKeySym(key.sym()) && !explicitChinesePunctuation &&
+        ((hasWordModifier(key) && !ctrlNavigation) || shiftedClientKey ||
+         clientTab || clientCut)) {
+        return commitForApplication();
+    }
 
     if (selecting_) {
         if (explicitChinesePunctuation) {
@@ -1814,14 +1844,14 @@ KeyResult Buffer::handleSpace() {
                               /*startAtBeginning=*/true);
     }
     // Otherwise space is a literal separator: fold the current token into cells_
-    // and append a space. Still no commit — only Enter commits.
+    // and append a space. This does not commit.
     freezeAll();
     cells_.push_back({false, " ", {}});
     return {true, false, {}, true};
 }
 
 KeyResult Buffer::handleEnter() {
-    // The one and only commit point: flush the whole pre-edit to the client.
+    // Shared commit path for Enter and application shortcut handoff.
     std::string out = preeditText();
     if (out.empty()) {
         return {false, false, {}, false}; // nothing pending: let Enter through
@@ -2996,7 +3026,7 @@ KeyResult Buffer::handleCaret(const fcitx::Key &key) {
     }
     if (sym == FcitxKey_Return || sym == FcitxKey_KP_Enter) {
         exitSelection();      // leave editing; the pre-edit stays in cells_
-        return handleEnter(); // Enter is still the only commit point
+        return handleEnter(); // Explicit whole-composition confirmation
     }
     // Any printable key (digits included) inserts at the caret as ordinary input
     // — this is what makes mid-string 注音 like 這/段 work.

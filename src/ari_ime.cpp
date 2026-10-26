@@ -17,8 +17,6 @@
 #include <fcitx/text.h>
 #include <fcitx/userinterfacemanager.h>
 
-#include <clipboard_public.h>
-
 #include "constants.h"
 #include "unicode.h"
 
@@ -140,15 +138,6 @@ std::string statusText(const Buffer &buffer) {
     out += " · ";
     out += buffer.isFullWidthPunct() ? "全形標點" : "半形標點";
     return out;
-}
-
-bool isPasteShortcut(const fcitx::Key &key) {
-    if (key.check(FcitxKey_v, fcitx::KeyState::Ctrl) ||
-        key.check(FcitxKey_Insert, fcitx::KeyState::Shift)) {
-        return true;
-    }
-    return key.sym() == FcitxKey_KP_Insert &&
-           key.states().test(fcitx::KeyState::Shift);
 }
 
 void setPreedit(fcitx::InputContext *ic, fcitx::Text preedit) {
@@ -275,14 +264,6 @@ void AriImeEngine::updateUI(fcitx::InputContext *ic, Buffer &buffer) {
     ic->updateUserInterface(fcitx::UserInterfaceComponent::InputPanel);
 }
 
-std::string AriImeEngine::clipboardText(fcitx::InputContext *ic) {
-    auto *clipboard = instance_->addonManager().addon("clipboard", /*load=*/true);
-    if (!clipboard) {
-        return {}; // clipboard module unavailable: silently fall back
-    }
-    return clipboard->call<fcitx::IClipboard::clipboard>(ic);
-}
-
 bool AriImeEngine::beginReconversion(fcitx::InputContext *ic,
                                       AriImeState &state) {
     if (state.reconversionActive || state.buffer.isForcedEnglish() ||
@@ -407,9 +388,6 @@ void AriImeEngine::keyEvent(const fcitx::InputMethodEntry &,
         return;
     }
 
-    // Ctrl+V / Shift+Insert paste clipboard text into our editable pre-edit
-    // buffer. If the clipboard is empty/unavailable, let the application handle
-    // the shortcut normally.
     const fcitx::Key &k = keyEvent.key();
 
     // Reopen a selected, short Chinese range for ordinary Ari candidate
@@ -423,19 +401,11 @@ void AriImeEngine::keyEvent(const fcitx::InputMethodEntry &,
         return;
     }
 
-    if (isPasteShortcut(k)) {
-        std::string pasted = clipboardText(ic);
-        if (!pasted.empty()) {
-            state->buffer.pasteAtCaret(pasted);
-            updateUI(ic, state->buffer);
-            keyEvent.filterAndAccept();
-            return;
-        }
-    }
-
+    const bool wasPicking = state->buffer.isPicking();
     KeyResult result = state->buffer.handleKey(keyEvent.key());
 
-    if (state->reconversionActive && k.sym() == FcitxKey_Escape &&
+    if (state->reconversionActive && !wasPicking &&
+        k.sym() == FcitxKey_Escape &&
         result.handled) {
         state->buffer.reset();
         ic->commitString(state->reconversionText);
@@ -447,7 +417,8 @@ void AriImeEngine::keyEvent(const fcitx::InputMethodEntry &,
     }
 
     applyResult(ic, state->buffer, result);
-    if (state->reconversionActive && result.hasCommit) {
+    if (state->reconversionActive &&
+        (result.hasCommit || result.applicationHandoff)) {
         state->reconversionActive = false;
         state->reconversionText.clear();
     }

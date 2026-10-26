@@ -27,6 +27,9 @@ struct KeyResult {
 
     bool handled = false;      // If false, let the application handle the key.
     bool hasCommit = false;    // commitText should be committed to the client.
+    // Also marks an empty composition as accepted (for example after deleting
+    // all reconverted text), so the platform must not restore it on reset.
+    bool applicationHandoff = false;
     std::string commitText;
     bool updateUI = false;     // Engine should refresh pre-edit + candidates.
     bool notifyMode = false;   // Engine should pop a transient 中/英 mode hint.
@@ -41,9 +44,9 @@ struct KeyResult {
 // syllable (e.g. "su" stays "su" until a tone arrives: "su3" -> 你). Nothing is
 // ever auto-broken or committed mid-stream — the whole pre-edit (which may freely
 // mix English and Chinese in any order, e.g. "acer螢幕") is held until the user
-// presses Enter, the only key that commits to the application. Space is a 一聲
+// presses Enter or hands off an application shortcut. Space is a 一聲
 // for a pending bopomofo syllable, otherwise a literal space; it ends the current
-// token but, like everything else, does not commit.
+// token without committing.
 //
 // To disambiguate the two regimes the state machine still tracks whether the
 // current token is Chinese (greedily growing one syllable; a class collision
@@ -61,15 +64,18 @@ struct KeyResult {
 // enters a selection mode whose cursor moves over the whole pre-edit.
 //
 // Ctrl+Space additionally toggles a forced pure-English mode (no 注音) that
-// persists until toggled again; text is still held in the pre-edit until Enter.
+// persists until toggled again; text is held until Enter or an application shortcut.
 class Buffer {
 public:
     KeyResult handleKey(const fcitx::Key &key);
+    // Commit displayed composition, then let the original application key pass.
+    // The portable client caret lands at the end of the committed text.
+    KeyResult commitForApplication();
     // Clear composition/candidates/caret state. User mode toggles such as
     // forced English persist until the user toggles them explicitly.
     void reset();
 
-    // Insert clipboard / external text at the caret (Ctrl+V): drops in as literal
+    // Insert external text at the caret (portable API): drops in as literal
     // cells and leaves the caret right after them, so editing continues there.
     void pasteAtCaret(const std::string &text);
 

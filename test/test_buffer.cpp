@@ -1367,8 +1367,9 @@ void test_candidate_selection_undo() {
     invalidated.type("cl3");
     r = invalidated.press(fcitx::Key(FcitxKey_z, fcitx::KeyState::Ctrl));
     check(!r.handled, "typing after a choice releases Ctrl+Z to the application");
-    check_eq(invalidated.preedit(), "妳好",
-             "released application undo does not alter the active preedit");
+    check(r.hasCommit, "application undo commits before handoff");
+    check_eq(r.commitText, "妳好", "application undo preserves accepted choice");
+    check_eq(invalidated.preedit(), "", "application undo clears preedit before handoff");
 }
 
 void test_symbol_heavy_context_keeps_chinese_first() {
@@ -3134,6 +3135,99 @@ void test_multi_char_preference_survives() {
 
 } // namespace
 
+void test_application_shortcut_handoff() {
+    const std::vector<fcitx::Key> shortcuts = {
+        fcitx::Key(FcitxKey_v, {fcitx::KeyState::Ctrl}),
+        fcitx::Key(FcitxKey_v, {fcitx::KeyState::Ctrl, fcitx::KeyState::Shift}),
+        fcitx::Key(FcitxKey_c, {fcitx::KeyState::Ctrl}),
+        fcitx::Key(FcitxKey_x, {fcitx::KeyState::Ctrl}),
+        fcitx::Key(FcitxKey_a, {fcitx::KeyState::Ctrl}),
+        fcitx::Key(FcitxKey_z, {fcitx::KeyState::Ctrl}),
+        fcitx::Key(FcitxKey_z, {fcitx::KeyState::Ctrl, fcitx::KeyState::Shift}),
+        fcitx::Key(FcitxKey_BackSpace, {fcitx::KeyState::Ctrl}),
+        fcitx::Key(FcitxKey_Insert, {fcitx::KeyState::Shift}),
+        fcitx::Key(FcitxKey_Left, {fcitx::KeyState::Shift}),
+        fcitx::Key(FcitxKey_End, {fcitx::KeyState::Shift})};
+    for (const auto &key : shortcuts) {
+        for (int state = 0; state < 5; ++state) {
+            Buffer b;
+            if (state != 0) {
+                for (char c : std::string(state == 1 ? "su" : "su3cl3su3cl3")) {
+                    b.handleKey(fcitx::Key(static_cast<fcitx::KeySym>(static_cast<unsigned char>(c))));
+                }
+            }
+            if (state == 2) {
+                for (int n = 0; n < 20; ++n) {
+                    for (char c : std::string("su3cl3")) {
+                        b.handleKey(fcitx::Key(static_cast<fcitx::KeySym>(c)));
+                    }
+                }
+            }
+            if (state == 3) b.handleKey(fcitx::Key(FcitxKey_Down));
+            if (state == 4) {
+                b.handleKey(fcitx::Key(FcitxKey_Left));
+                b.handleKey(fcitx::Key(FcitxKey_s));
+            }
+            const auto expected = b.preeditText();
+            const auto r = b.handleKey(key);
+            check(!r.handled, "application shortcut remains unhandled");
+            check(r.applicationHandoff, "shortcut explicitly marks application handoff");
+            check(r.hasCommit == !expected.empty(), "handoff commits iff pending");
+            check_eq(r.commitText, expected, "handoff preserves exact displayed text");
+            check_eq(b.preeditText(), "", "handoff clears all composition");
+            check(b.candidates().empty(), "handoff closes candidate window");
+            check(!b.handleKey(key).hasCommit, "repeated shortcut cannot duplicate text");
+        }
+    }
+    Buffer b;
+    b.handleKey(fcitx::Key(FcitxKey_s));
+    const auto before = b.preeditText();
+    b.handleKey(fcitx::Key(FcitxKey_Control_L));
+    check_eq(b.preeditText(), before, "modifier alone preserves composition");
+}
+
+void test_editing_operation_boundaries() {
+    const std::vector<fcitx::Key> keys = {
+        fcitx::Key(FcitxKey_Tab),
+        fcitx::Key(FcitxKey_Tab, {fcitx::KeyState::Shift}),
+        fcitx::Key(FcitxKey_ISO_Left_Tab),
+        fcitx::Key(FcitxKey_Page_Up, {fcitx::KeyState::Shift}),
+        fcitx::Key(FcitxKey_Page_Down, {fcitx::KeyState::Shift}),
+        fcitx::Key(FcitxKey_Delete, {fcitx::KeyState::Shift}),
+        fcitx::Key(FcitxKey_space, {fcitx::KeyState::Ctrl, fcitx::KeyState::Shift}),
+        fcitx::Key(FcitxKey_space, {fcitx::KeyState::Ctrl, fcitx::KeyState::Alt})};
+    for (const auto &key : keys) {
+        for (bool editing : {false, true}) {
+            Sim s;
+            s.type("su3cl3");
+            if (editing) s.key(FcitxKey_Home);
+            const auto before = s.preedit();
+            const auto r = s.press(key);
+            check(!r.handled && r.hasCommit && r.updateUI,
+                  "client editing operation commits and passes through");
+            check_eq(r.commitText, before, "client operation commits exact text");
+            check_eq(s.preedit(), "", "client operation ends composition");
+            check(!s.b.isEditing() && !s.b.isPicking(),
+                  "client operation leaves no editing state");
+            check(!s.b.isForcedEnglish(), "modified client Space does not toggle mode");
+        }
+    }
+    for (bool picking : {false, true}) {
+        Sim s;
+        s.type("su3cl3");
+        s.key(FcitxKey_Home);
+        if (picking) s.key(FcitxKey_Down);
+        const auto before = s.preedit();
+        auto r = s.press(fcitx::Key(FcitxKey_a, fcitx::KeyState::Ctrl));
+        check(!r.handled && r.hasCommit && r.updateUI, "select all confirms like Enter");
+        check_eq(r.commitText, before, "select all preserves entire composition");
+        check(!s.b.isEditing() && !s.b.isPicking() && s.b.caretChar() == -1,
+              "select all resets composition caret and picker");
+        s.type("su3");
+        check_eq(s.preedit(), "你", "typing after select all starts fresh composition");
+    }
+}
+
 int main() {
     // Isolate chewing's learned dictionary in a fresh temp dir: tests stay
     // deterministic (no leaked homophone frequencies between runs) and never
@@ -3141,6 +3235,8 @@ int main() {
     // any Buffer/Zhuyin is constructed, since the path is read at chewing_new2.
     test::TempConfigHome configHome("inputer-buffer-test-config");
 
+    test_editing_operation_boundaries();
+    test_application_shortcut_handoff();
     test_typing();
     test_input_error_correction();
     test_tone1_space_uses_conversion_result();

@@ -192,10 +192,6 @@ private:
     void applyResult(fcitx::InputContext *ic, Buffer &buffer,
                      const KeyResult &result);
     bool beginReconversion(fcitx::InputContext *ic, AriImeState &state);
-    // Current clipboard contents (Ctrl+V), or empty if the clipboard module is
-    // unavailable. Loads the clipboard addon on demand.
-    std::string clipboardText(fcitx::InputContext *ic);
-
     fcitx::Instance *instance_;
     fcitx::FactoryFor<AriImeState> factory_;
     AriImeConfig config_;

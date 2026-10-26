@@ -5,6 +5,9 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Give clangd/editor tooling the same dependency paths and defines as the build.
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 option(ARI_IME_ENABLE_SANITIZERS
     "Build with AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
 option(ARI_IME_SANITIZER_DETECT_LEAKS
@@ -22,7 +25,6 @@ set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH})
 find_package(Fcitx5Core REQUIRED)
 find_package(Fcitx5Config REQUIRED)
 find_package(Fcitx5Utils REQUIRED)
-find_package(Fcitx5ModuleClipboard REQUIRED) # clipboard_public.h for Ctrl+V paste
 
 # showCustomInputMethodInformation() was added in Fcitx5 5.1.11. Keep the
 # addon buildable with the older Fcitx5 shipped by Ubuntu 24.04; the fallback
@@ -138,7 +140,6 @@ target_link_libraries(ari-ime
     PRIVATE
         Fcitx5::Core
         Fcitx5::Utils
-        Fcitx5::Module::Clipboard
         PkgConfig::Chewing
 )
 if(ARI_IME_HAVE_CUSTOM_INPUT_METHOD_INFORMATION)
@@ -249,6 +250,21 @@ if(BUILD_TESTING)
     ari_ime_enable_coverage(test_buffer)
     add_test(NAME buffer COMMAND test_buffer)
     ari_ime_configure_test(buffer)
+
+    add_executable(test_engine
+        test/test_engine.cpp src/ari_ime.cpp src/layout.cpp
+        src/user_data.cpp src/zhuyin.cpp src/buffer.cpp)
+    target_include_directories(test_engine PRIVATE src)
+    target_link_libraries(test_engine PRIVATE Fcitx5::Core Fcitx5::Config
+        Fcitx5::Utils PkgConfig::Chewing)
+    if(ARI_IME_HAVE_CUSTOM_INPUT_METHOD_INFORMATION)
+        target_compile_definitions(test_engine PRIVATE
+            ARI_IME_HAVE_CUSTOM_INPUT_METHOD_INFORMATION)
+    endif()
+    ari_ime_enable_warnings(test_engine)
+    ari_ime_enable_sanitizers(test_engine)
+    add_test(NAME engine COMMAND test_engine)
+    ari_ime_configure_test(engine)
 
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test/test_layout.cpp")
         add_executable(test_layout
