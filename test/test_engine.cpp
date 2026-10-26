@@ -16,13 +16,18 @@ public:
     ~RecordingContext() override { destroy(); }
     const char *frontend() const override { return "ari-test"; }
     std::vector<std::string> commits;
+    std::vector<std::pair<std::string, int>> preedits;
     int forwards = 0;
     int updates = 0;
 private:
     void commitStringImpl(const std::string &text) override { commits.push_back(text); }
     void deleteSurroundingTextImpl(int, unsigned int) override {}
     void forwardKeyImpl(const fcitx::ForwardKeyEvent &) override { ++forwards; }
-    void updatePreeditImpl() override { ++updates; }
+    void updatePreeditImpl() override {
+        ++updates;
+        const auto &text = inputPanel().clientPreedit();
+        preedits.emplace_back(text.toString(), text.cursor());
+    }
 };
 
 int main() {
@@ -40,6 +45,30 @@ int main() {
         engine.keyEvent(entry, event);
         return event.filtered();
     };
+    // Record frontend callbacks, not only the final input-panel state: every
+    // movement of a composition caret must reach the application.
+    for (char c : std::string("su3cl3")) {
+        const auto count = ic.preedits.size();
+        send(fcitx::Key(static_cast<fcitx::KeySym>(c)));
+        test::check(ic.preedits.size() > count, "typing publishes client preedit");
+        test::check(ic.preedits.back().second ==
+                    static_cast<int>(ic.preedits.back().first.size()),
+                    "typing publishes caret at displayed text end");
+    }
+    for (int expected : {3, 0}) {
+        const auto count = ic.preedits.size();
+        send(fcitx::Key(FcitxKey_Left));
+        test::check(ic.preedits.size() > count, "Left publishes changed caret");
+        test::check(ic.preedits.back().second == expected,
+                    "Left callback carries Chinese byte offset");
+    }
+    for (int expected : {3, 6}) {
+        send(fcitx::Key(FcitxKey_Right));
+        test::check(ic.preedits.back().second == expected,
+                    "Right callback advances without changing text");
+    }
+    send(fcitx::Key(FcitxKey_Return));
+    ic.commits.clear();
     // Inline editing must not open an auxiliary caret/position popup.
     for (char c : std::string("su3cl3"))
         send(fcitx::Key(static_cast<fcitx::KeySym>(c)));

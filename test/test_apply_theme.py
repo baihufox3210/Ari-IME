@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / 'scripts/apply-theme.py'
@@ -16,6 +17,30 @@ spec.loader.exec_module(theme)
 
 
 class ThemeTests(unittest.TestCase):
+    def test_live_reload_targets_addon_and_checks_active_renderer(self):
+        replies = [subprocess.CompletedProcess([], 0, '', ''),
+                   subprocess.CompletedProcess([], 0, 's "classicui"\n', '')]
+        with patch.object(theme.shutil, 'which', return_value='/usr/bin/busctl'), \
+             patch.object(theme.subprocess, 'run', side_effect=replies) as run:
+            self.assertTrue(theme.reload_theme())
+        command = run.call_args_list[0].args[0]
+        self.assertEqual(command[-3:], ['ReloadAddonConfig', 's', 'classicui'])
+        self.assertEqual(run.call_args_list[1].args[0][-1], 'CurrentUI')
+
+    def test_gdbus_fallback_parses_renderer(self):
+        with patch.object(theme.shutil, 'which', side_effect=[None, '/usr/bin/gdbus']), \
+             patch.object(theme.subprocess, 'run', return_value=
+                          subprocess.CompletedProcess([], 0, "('classicui',)\n", '')):
+            self.assertEqual(theme.controller_call('CurrentUI'), 'classicui')
+
+    def test_external_renderer_and_reload_failure_are_not_success(self):
+        with patch.object(theme, 'controller_call', side_effect=['', 'kimpanel']):
+            self.assertFalse(theme.reload_theme())
+        with patch.object(theme, 'controller_call', side_effect=RuntimeError('No session bus')):
+            self.assertFalse(theme.reload_theme())
+        with patch.object(theme, 'controller_call', side_effect=['', RuntimeError('Unknown method')]):
+            self.assertFalse(theme.reload_theme())
+
     def test_preserves_other_keys_comments_and_sections(self):
         original = '# 我的設定\nFont=Sans 15\nTheme=old\nTheme=duplicate\nWheelForPaging=False\n[Other]\nTheme=keep\n'
         updated = theme.update_root_options(original, {'Theme': 'ari-dark', 'DarkTheme': 'ari-dark'})

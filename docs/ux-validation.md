@@ -150,3 +150,20 @@ Shell 語法與 git diff --check 通過。
 設計預覽是 SVG 示意圖，未宣稱為實際桌面截圖；真實 compositor/UI/DPI 驗證仍未執行。
 完整操作與限制見 modern-ui.md；使用者日誌中的 chewing.dat 訊息尚未獲得版本與
 詞典診斷輸出，未據此改寫/清除詞典或全域關閉 libchewing 錯誤記錄。
+
+## 2026-10-26：主題無變化與游標不移動回報
+
+- 確認工具缺陷：`fcitx5-remote -r` 呼叫全域 ReloadConfig，Classic UI 不監聽
+  GlobalConfigReloaded；改用 ReloadAddonConfig("classicui")，再查 CurrentUI。
+- 主題工具測試：預期重讀指定 addon、識別 kimpanel 接管、連線失敗不回報成功；
+  實際 Python 10/10 通過，包含 gdbus fallback、原設定備份與冪等。
+- 游標前端回呼：預期 su3cl3 每次輸入游標位於組字結尾；Left 的 UTF-8 offset
+  為 3、0，Right 為 3、6；實際 headless Fcitx engine 測試通過。
+- 編譯成功，CTest 4/4 通過（26.86 秒）。
+- 使用者桌面的游標停滯尚未重現，等待應用程式／桌面環境和 CurrentUI 回報。
+  前端回呼測試不等同真實 GTK、Qt、Electron、Wayland 顯示驗證。
+
+依據：
+- https://github.com/fcitx/fcitx5/blob/5.1.23/src/ui/classic/classicui.cpp
+- https://github.com/fcitx/fcitx5/blob/master/src/tools/remote.cpp
+- https://github.com/fcitx/fcitx5/blob/master/src/modules/dbus/dbusmodule.cpp

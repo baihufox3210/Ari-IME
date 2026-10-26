@@ -111,13 +111,10 @@ void showAriImeInformation(fcitx::Instance *instance, fcitx::InputContext *ic,
 #endif
 }
 
-// Build the pre-edit text. The whole string is underlined to signal it is
-// uncommitted. When a character is being selected (selChar >= 0) the caret is
-// parked on it. We deliberately avoid per-segment highlight here: many clients
-// ignore per-segment format flags and paint the whole pre-edit in one style, so
-// a highlight would either vanish or bleed across everything. The caret, by
-// contrast, is honoured almost universally and (together with the candidate
-// window) clearly marks the character being edited.
+// Underline uncommitted text and publish the composition caret as a UTF-8
+// byte offset. Rendering belongs to the client: publishing a valid cursor
+// does not guarantee every application draws or moves its visible caret.
+// Do not insert a literal cursor marker into text that may later be committed.
 fcitx::Text buildPreedit(const std::string &text, int caret) {
     fcitx::Text preedit;
     if (text.empty()) {

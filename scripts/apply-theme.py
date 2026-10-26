@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 import os
 from pathlib import Path
 import shutil
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -87,6 +88,61 @@ def apply_theme(mode, path, font=None, dry_run=False):
     return backup
 
 
+def controller_call(method, *args):
+    """Use the addon-specific API; remote -r only reloads global settings."""
+    busctl = shutil.which('busctl')
+    gdbus = shutil.which('gdbus')
+    if busctl:
+        command = [busctl, '--user', '--timeout=3', 'call',
+                   'org.fcitx.Fcitx5', '/controller',
+                   'org.fcitx.Fcitx.Controller1', method]
+        if args:
+            command += ['s', *args]
+    elif gdbus:
+        command = [gdbus, 'call', '--session', '--timeout', '3',
+                   '--dest', 'org.fcitx.Fcitx5', '--object-path', '/controller',
+                   '--method', 'org.fcitx.Fcitx.Controller1.' + method, *args]
+    else:
+        raise RuntimeError('Neither busctl nor gdbus is available')
+    result = subprocess.run(command, capture_output=True, text=True, timeout=5)
+    if result.returncode:
+        raise RuntimeError(result.stderr.strip() or 'Fcitx D-Bus call failed')
+    if method == 'CurrentUI':
+        if busctl:
+            fields = shlex.split(result.stdout)
+            if len(fields) == 2 and fields[0] == 's':
+                return fields[1]
+        else:
+            import ast
+            value = ast.literal_eval(result.stdout.strip())
+            if isinstance(value, tuple) and len(value) == 1 and isinstance(value[0], str):
+                return value[0]
+        raise RuntimeError('Unrecognized CurrentUI response')
+    return result.stdout.strip()
+
+
+def reload_theme():
+    try:
+        controller_call('ReloadAddonConfig', 'classicui')
+    except (OSError, RuntimeError, subprocess.TimeoutExpired) as error:
+        print(f'Theme saved, but Classic UI reload failed: {error}', file=sys.stderr)
+        print('Restart Fcitx5 after finishing composition to apply it.', file=sys.stderr)
+        return False
+    print('Classic UI configuration reloaded.')
+    try:
+        current = controller_call('CurrentUI')
+    except (OSError, RuntimeError, ValueError, SyntaxError, subprocess.TimeoutExpired) as error:
+        print(f'Cannot verify active candidate UI: {error}', file=sys.stderr)
+        return False
+    print('Active candidate UI:', current or '(none)')
+    if current != 'classicui':
+        print('Ari themes require Classic UI. The active desktop panel may override '
+              'these colors and corners. Select Classic UI in Fcitx addon settings.',
+              file=sys.stderr)
+        return False
+    return True
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('mode', choices=('dark', 'light', 'auto'))
@@ -111,13 +167,12 @@ def main():
     print('This applies to all input methods using Fcitx Classic UI.')
     if backup:
         print('Previous configuration:', backup)
-    if not args.no_reload:
-        remote = shutil.which('fcitx5-remote')
-        if not remote:
-            print('Reload later with: fcitx5-remote -r', file=sys.stderr)
-        elif subprocess.run([remote, '-r'], check=False).returncode:
-            print('Reload failed; restart Fcitx5 to apply the theme.', file=sys.stderr)
+    if args.no_reload:
+        print('Configuration saved; live theme was not reloaded.')
+    elif not reload_theme():
+        return 1
+    return 0
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())

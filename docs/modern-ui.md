@@ -59,7 +59,26 @@ ari-ime-theme dark --font 'Sans 12'
 不要只因日誌出現 Loaded addon kimpanel 就判斷它目前正在繪製候選。
 
 設定檔為 `~/.config/fcitx5/conf/classicui.conf`（尊重 XDG_CONFIG_HOME）；
-備份檔會顯示在指令輸出，可複製回原位置並 `fcitx5-remote -r` 還原。
+備份檔會顯示在指令輸出。複製回原位置後，執行下列指令重讀主題：
+
+```sh
+busctl --user call org.fcitx.Fcitx5 /controller org.fcitx.Fcitx.Controller1 ReloadAddonConfig s classicui
+```
+
+`fcitx5-remote -r` 只重新載入全域設定，不能取代上述 addon 重新載入。
+主題工具現在直接呼叫 ReloadAddonConfig，並查詢 CurrentUI。只有重讀成功且
+目前 renderer 是 classicui 時才回報成功；未連線或 kimpanel 接管時會明確提示並
+傳回非零結束碼。這不代表螢幕像素已驗證；請開候選確認實際外觀。
+
+若主題沒有變，請提供工具完整輸出及下列唯讀診斷：
+
+```sh
+printf '%s\n' "$XDG_CURRENT_DESKTOP" "$XDG_SESSION_TYPE"
+busctl --user call org.fcitx.Fcitx5 /controller org.fcitx.Fcitx.Controller1 CurrentUI
+```
+
+游標不動時請記錄應用程式名稱、版本，以及是在連續輸入或 Left/Right 編輯時發生。
+引擎測試驗證每次前端更新攜帶的 UTF-8 cursor offset；它不能證明應用程式真的繪製該游標。
 只重新載入設定足以套用主題；更新引擎本身仍須重新啟動 Fcitx。
 
 ## 驗證
