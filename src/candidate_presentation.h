@@ -16,7 +16,7 @@ candidateDisplayTexts(const std::vector<std::string> &candidates, bool horizonta
         int length = 0;
         for (const auto &text : candidates) {
             length += unicode::graphemeCount(text);
-            if (length > 4) {
+            if (length > 3) {
                 return displayed;
             }
         }
@@ -26,7 +26,7 @@ candidateDisplayTexts(const std::vector<std::string> &candidates, bool horizonta
     } else {
         for (auto &text : displayed) {
             const int length = unicode::graphemeCount(text);
-            if (length > 0 && length <= 4) {
+            if (length > 0 && length <= 3) {
                 text += "\u3000";
             }
         }

@@ -1,0 +1,115 @@
+diff --git a/crates/gpui_linux/src/linux/wayland/client.rs b/crates/gpui_linux/src/linux/wayland/client.rs
+--- a/crates/gpui_linux/src/linux/wayland/client.rs
++++ b/crates/gpui_linux/src/linux/wayland/client.rs
+@@ -366,7 +366,7 @@
+     primary_selection: Option<zwp_primary_selection_device_v1::ZwpPrimarySelectionDeviceV1>,
+     text_input: Option<zwp_text_input_v3::ZwpTextInputV3>,
+     pre_edit_text: Option<String>,
+-    ime_pre_edit: Option<String>,
++    ime_pre_edit: Option<(String, Option<std::ops::Range<usize>>)>,
+     composing: bool,
+     last_ime_cursor_rectangle: Option<ImeCursorRectangle>,
+     // Surface to Window mapping
+@@ -2275,6 +2275,20 @@
+     }
+ }
+ 
++// Wayland preedit positions are UTF-8 bytes; GPUI marked-text selections
++// use UTF-16 code units relative to the marked text. Reject invalid offsets.
++fn preedit_selection_utf16(
++    text: &str,
++    cursor_begin: i32,
++    cursor_end: i32,
++) -> Option<std::ops::Range<usize>> {
++    let begin = usize::try_from(cursor_begin).ok()?;
++    let end = usize::try_from(cursor_end).ok()?;
++    let begin = text.get(..begin)?.encode_utf16().count();
++    let end = text.get(..end)?.encode_utf16().count();
++    Some(begin.min(end)..begin.max(end))
++}
++
+ impl Dispatch<zwp_text_input_v3::ZwpTextInputV3, ()> for WaylandClientStatePtr {
+     fn event(
+         this: &mut Self,
+@@ -2320,9 +2334,16 @@
+                     }
+                 }
+             }
+-            zwp_text_input_v3::Event::PreeditString { text, .. } => {
++            zwp_text_input_v3::Event::PreeditString {
++                text,
++                cursor_begin,
++                cursor_end,
++            } => {
+                 state.composing = true;
+-                state.ime_pre_edit = text;
++                state.ime_pre_edit = text.map(|text| {
++                    let selection = preedit_selection_utf16(&text, cursor_begin, cursor_end);
++                    (text, selection)
++                });
+             }
+             zwp_text_input_v3::Event::Done { serial } => {
+                 let last_serial = state.serial_tracker.get(SerialKind::InputMethod);
+@@ -2331,9 +2352,9 @@
+                     return;
+                 };
+ 
+-                if let Some(text) = state.ime_pre_edit.take() {
++                if let Some((text, selection)) = state.ime_pre_edit.take() {
+                     drop(state);
+-                    window.handle_ime(ImeInput::SetMarkedText(text));
++                    window.handle_ime(ImeInput::SetMarkedTextWithSelection(text, selection));
+                     if let Some(area) = window.get_ime_area() {
+                         let mut state = client.borrow_mut();
+                         set_ime_cursor_rectangle_after_done(
+@@ -3194,6 +3215,29 @@
+     use super::*;
+ 
+     #[test]
++    fn preedit_cursor_uses_utf16_marked_text_offsets() {
++        assert_eq!(preedit_selection_utf16("你好", 0, 0), Some(0..0));
++        assert_eq!(preedit_selection_utf16("你好", 3, 3), Some(1..1));
++        assert_eq!(preedit_selection_utf16("你好", 6, 6), Some(2..2));
++        assert_eq!(preedit_selection_utf16("你好", 6, 0), Some(0..2));
++    }
++
++    #[test]
++    fn preedit_cursor_preserves_non_bmp_and_zwj_positions() {
++        assert_eq!(preedit_selection_utf16("A😀B", 5, 5), Some(3..3));
++        assert_eq!(preedit_selection_utf16("A👩‍💻B", 12, 12), Some(6..6));
++        assert_eq!(preedit_selection_utf16("A👩‍💻B", 13, 13), Some(7..7));
++    }
++
++    #[test]
++    fn preedit_cursor_rejects_hidden_or_invalid_offsets() {
++        assert_eq!(preedit_selection_utf16("你好", -1, -1), None);
++        assert_eq!(preedit_selection_utf16("你好", 1, 1), None);
++        assert_eq!(preedit_selection_utf16("你好", 7, 7), None);
++        assert_eq!(preedit_selection_utf16("", 0, 0), Some(0..0));
++    }
++
++    #[test]
+     fn rejects_required_globals_below_supported_versions() {
+         assert!(wl_seat_version(4).is_err());
+         assert!(wl_output_version(1).is_err());
+diff --git a/crates/gpui_linux/src/linux/wayland/window.rs b/crates/gpui_linux/src/linux/wayland/window.rs
+--- a/crates/gpui_linux/src/linux/wayland/window.rs
++++ b/crates/gpui_linux/src/linux/wayland/window.rs
+@@ -763,6 +763,7 @@
+ pub enum ImeInput {
+     InsertText(String),
+     SetMarkedText(String),
++    SetMarkedTextWithSelection(String, Option<std::ops::Range<usize>>),
+     UnmarkText,
+     DeleteText,
+ }
+@@ -1480,6 +1481,9 @@
+                 ImeInput::SetMarkedText(text) => {
+                     input_handler.replace_and_mark_text_in_range(None, &text, None);
+                 }
++                ImeInput::SetMarkedTextWithSelection(text, selection) => {
++                    input_handler.replace_and_mark_text_in_range(None, &text, selection);
++                }
+                 ImeInput::UnmarkText => {
+                     input_handler.unmark_text();
+                 }

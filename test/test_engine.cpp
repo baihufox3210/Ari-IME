@@ -43,14 +43,14 @@ int main() {
     const auto shortRows = ari_ime::candidateDisplayTexts({"你", "輸入法", "智慧輸入"}, false);
     test::check_eq(shortRows[0], "你\u3000", "one-character candidate gets one em");
     test::check_eq(shortRows[1], "輸入法\u3000", "three-character candidate gets one em");
-    test::check_eq(shortRows[2], "智慧輸入\u3000", "four-character candidate is widened once");
+    test::check_eq(shortRows[2], "智慧輸入", "four-character candidate is not widened");
     test::check_eq(ari_ime::candidateDisplayTexts({"智慧輸入法"}, false)[0],
                     "智慧輸入法", "five-character candidate is not widened");
     const auto shortLine = ari_ime::candidateDisplayTexts({"你", "你好"}, true);
     test::check_eq(shortLine[0], "你", "row padding never affects earlier candidates");
     test::check_eq(shortLine[1], "你好\u3000", "three-character horizontal row padded once");
     const auto longLine = ari_ime::candidateDisplayTexts({"你好", "世界"}, true);
-    test::check_eq(longLine[1], "世界\u3000", "four-character horizontal row is widened once");
+    test::check_eq(longLine[1], "世界", "four-character horizontal row is not widened");
     test::check_eq(ari_ime::candidateDisplayTexts({"你好", "輸入法"}, true)[1],
                     "輸入法", "five-character horizontal row is not widened");
     test::check(ari_ime::candidateDisplayTexts({}, true).empty(), "empty candidate list remains empty");
@@ -131,12 +131,18 @@ int main() {
                     "Right advances then wraps to first page");
         test::check(state->buffer.selectionChar() == pickerTarget,
                     "paging keeps the same correction target");
+        if (pages > 1) {
+            test::check_eq(ic.inputPanel().auxDown().toString(),
+                            "候選 " + std::to_string(state->buffer.candidatePage()) +
+                            "/" + std::to_string(pages) + "\u3000",
+                            "page indicator always has one em of trailing room");
+        }
         const auto shown = state->buffer.candidates();
         const auto rendered = ic.inputPanel().candidateList();
         test::check(rendered && rendered->size() == static_cast<int>(shown.size()),
                     "page update reaches native candidate list");
         if (rendered && !shown.empty())
-            test::check_eq(rendered->candidate(0).text().toString(), shown.front() + (ari_ime::unicode::graphemeCount(shown.front()) <= 4 ? "\u3000" : ""),
+            test::check_eq(rendered->candidate(0).text().toString(), shown.front() + (ari_ime::unicode::graphemeCount(shown.front()) <= 3 ? "\u3000" : ""),
                             "native page includes font-relative display padding");
     }
     send(fcitx::Key(FcitxKey_Left));
@@ -227,13 +233,17 @@ int main() {
     test::check(list && list->layoutHint() == fcitx::CandidateLayoutHint::Horizontal,
                 "horizontal candidate setting reaches frontend");
     test::check(!ic.inputPanel().auxUp().empty(), "compatibility preview can be enabled");
+    if (state->buffer.candidatePageCount() > 1)
+        test::check(ic.inputPanel().auxDown().toString().ends_with("\u3000"),
+                    "page row padding follows optional editing-position text");
+
     const auto horizontal = state->buffer.candidates();
     int rowLength = 0;
     for (const auto &text : horizontal)
         rowLength += ari_ime::unicode::graphemeCount(text);
     for (int i = 0; list && i < list->size(); ++i) {
         test::check_eq(list->candidate(i).text().toString(),
-                        horizontal[i] + (rowLength <= 4 && i + 1 == list->size() ? "\u3000" : ""),
+                        horizontal[i] + (rowLength <= 3 && i + 1 == list->size() ? "\u3000" : ""),
                         "horizontal layout pads only a short row, once");
     }
     if (list && list->size() > 0) {

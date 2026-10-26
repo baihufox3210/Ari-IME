@@ -241,3 +241,21 @@ https://github.com/qt/qtbase/blob/6.10/src/gui/image/qicon.cpp
 - apply_theme、converter 也通過，4 組檢查均已通過。
 - 僅修復可重現的游標索引錯誤。尚待使用者提供其他問題應用程式與按鍵序列，
   不將 headless preedit 測試視為所有應用程式的游標繪製已驗證。
+
+## 2026-10-26：三字門檻、候選頁碼列與 Zed 根因
+
+- 使用者將文字加寬門檻改回 3：直排 3 字加一字寬、4 字不加；橫排依整排總字數。
+- 先前只處理候選項目，漏掉 auxDown 的「候選 1/4」。頁碼列現在獨立補一個
+  U+3000，不受候選字數門檻限制；engine 測試逐頁驗證實際 auxDown 字串及候選內容。
+- Ari 編譯與 engine 整合測試通過（0.88 秒）；核心刪字／游標未改動。
+- 取得 Zed 原始碼固定於 e0f4f28001da631f4e37f2155bbc7f43a652a37e：
+  Wayland PreeditString 只保存 text 丟棄 cursor_begin/end；window handler
+  replace_and_mark_text_in_range 的選取位置也傳 None。GPUI 介面要求 UTF-16。
+  因此 Ari 的正確 UTF-8 caret 無法在現有 Zed 上自動生效。
+- contrib/zed 包含兩檔最小補丁：保存原子 text/selection、Done 時送入新 marked-text
+  事件並轉換 UTF-8→UTF-16；dead-key compose 舊事件不變。
+- 對固定版原始碼 git apply --check 通過。補丁的實際轉換函式／三組測試抽出後以
+  rustc 1.93 編譯執行，3/3 通過。沒有編譯整個 Zed，也未實機驗證 Niri。
+- X11 backend 同樣對 marked-text selection 傳 None，不將改用 XWayland 宣稱為解法。
+- 已提供獨立 Zed checkout 的編譯／測試步驟，不修改使用者既有 Zed 安裝。
+  等待使用者確認是否願意編譯，以及提供其版本供後續對應。

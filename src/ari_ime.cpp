@@ -254,7 +254,10 @@ void AriImeEngine::updateUI(fcitx::InputContext *ic, Buffer &buffer) {
         if (*config_.showStatusLine) {
             auxParts.push_back(statusText(buffer));
         }
-        const std::string auxDown = joinAuxParts(auxParts);
+        // Reserve room after the entire page-information row, including
+        // optional position/status text, independently of candidate length.
+        const std::string auxDown = joinAuxParts(auxParts) +
+                                    (pages > 1 ? "\u3000" : "");
         if (!auxDown.empty()) {
             panel.setAuxDown(fcitx::Text(auxDown));
         }
