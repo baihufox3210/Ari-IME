@@ -1044,7 +1044,32 @@ KeyResult Buffer::moveCaretTo(int position) {
     mergeTail();
     exitSelection();
     selecting_ = true;
-    caretPos_ = position;
+    // The public position counts displayed graphemes; caretPos_ indexes cells.
+    // A literal such as "……" is one cell containing two graphemes. Resolve the
+    // boundary rather than using the grapheme index as a vector index.
+    int remaining = position;
+    int index = 0;
+    for (; index < static_cast<int>(cells_.size()); ++index) {
+        if (remaining == 0) {
+            break;
+        }
+        const int length = utf8Count(cells_[index].text);
+        if (remaining < length) {
+            if (!cells_[index].chinese) {
+                // Permit a click between literal graphemes without splitting
+                // combining characters or a ZWJ emoji sequence.
+                const auto byte = ari_ime::unicode::graphemeOffset(
+                    cells_[index].text, remaining);
+                const auto suffix = cells_[index].text.substr(byte);
+                cells_[index].text.resize(byte);
+                cells_.insert(cells_.begin() + index + 1, {false, suffix, {}});
+                ++index;
+            }
+            break;
+        }
+        remaining -= length;
+    }
+    caretPos_ = index;
     return {true, false, {}, true};
 }
 
@@ -2008,51 +2033,15 @@ KeyResult Buffer::handleBackspace() {
         return {true, false, {}, true};
     }
     if (!zhuyin_.preedit().empty()) {
-        // libchewing keeps a syllable in canonical slot order. For a syllable
-        // whose typed key order differs from that canonical order (for example
-        // "140" → "104"), rebuild the preceding run and restore the user's
-        // original keys. Canonical input keeps libchewing's native Backspace
-        // path, which also preserves its normal phrase-editing semantics.
-        if (!runReadings_.empty()) {
-            const std::string reading = runReadings_.back();
-            const std::string typed = runTyped_.empty()
-                                          ? reading
-                                          : runTyped_.back();
-            const auto typedParts = typedBody(typed, reading);
-            const auto readingParts = readingBody(reading);
-            if (typedParts == readingParts) {
-                zhuyin_.handleBackspace();
-                runReadings_.pop_back();
-                if (!runTyped_.empty()) {
-                    runTyped_.pop_back();
-                }
-                return {true, false, {}, true};
-            }
-
-            runReadings_.pop_back();
-            if (!runTyped_.empty()) {
-                runTyped_.pop_back();
-            }
-
-            zhuyin_.resetAll();
-            for (const std::string &savedReading : runReadings_) {
-                auto [body, tone1] = readingBody(savedReading);
-                for (char c : body) {
-                    zhuyin_.handleDefault(static_cast<int>(c));
-                }
-                if (tone1) {
-                    zhuyin_.handleSpace();
-                }
-            }
-            zhuyin_.promoteUserPhrases();
-            moveAutoCommit();
-            syl_ = typedParts.first;
-            return {true, false, {}, true};
+        // Conversion is a completed text transformation, even before Enter.
+        // Freeze the visible run before deleting so neither chewing's spelling
+        // state nor noncanonical key order can resurrect the raw Latin keys or
+        // rephrase the surviving prefix. Metadata stays on the remaining cells
+        // for explicit candidate correction and later learning.
+        freezeRun();
+        if (!cells_.empty()) {
+            cells_.pop_back();
         }
-
-        // A run without Ari reading metadata can only arise from a defensive
-        // fallback. Preserve the engine's usual behavior in that case.
-        zhuyin_.handleBackspace();
         return {true, false, {}, true};
     }
     if (!cells_.empty()) {

@@ -962,16 +962,16 @@ void test_backspace() {
     check(contains_han_character(outOfOrder.preedit()),
           "out-of-order syllable converts before backspace");
     outOfOrder.key(FcitxKey_BackSpace);
-    check_eq(outOfOrder.preedit(), "140",
-             "backspace restores out-of-order keys in their typed order");
+    check_eq(outOfOrder.preedit(), "",
+             "backspace deletes converted Chinese instead of restoring typed keys");
 
     Sim toneBeforeFinal;
     toneBeforeFinal.type("240");
     check(contains_han_character(toneBeforeFinal.preedit()),
           "240 converts before backspace");
     toneBeforeFinal.key(FcitxKey_BackSpace);
-    check_eq(toneBeforeFinal.preedit(), "240",
-             "backspace restores tone-before-final keys in typed order");
+    check_eq(toneBeforeFinal.preedit(), "",
+             "backspace deletes converted tone-before-final Chinese");
 
     Sim toneBeforeFinalCandidate;
     toneBeforeFinalCandidate.type("240");
@@ -1508,6 +1508,59 @@ void test_paste_caret_with_multi_codepoint_cells() {
              "paste stays at the visible caret after a multi-codepoint cell");
     check(s.b.caretChar() == 5,
           "caret stays right after pasted text in multi-codepoint context");
+}
+
+void test_mouse_caret_compound_cells() {
+    Sim s;
+    s.b.setFullWidthPunct(true);
+    s.type("^su3"); // ……你: two cells, three displayed graphemes
+    auto result = s.b.moveCaretTo(2);
+    check(result.handled && s.b.caretChar() == 2,
+          "mouse position after compound punctuation maps to cell boundary");
+    s.type("A");
+    check_eq(s.preedit(), "……A你", "insertion follows clicked grapheme position");
+
+    Sim end;
+    end.b.setFullWidthPunct(true);
+    end.type("^su3");
+    end.b.moveCaretTo(3);
+    check(end.b.caretChar() == 3, "end click uses valid cell boundary");
+    end.key(FcitxKey_BackSpace);
+    check_eq(end.preedit(), "……", "backspace at clicked end deletes Chinese safely");
+
+    Sim inside;
+    inside.b.setFullWidthPunct(true);
+    inside.type("^su3");
+    inside.b.moveCaretTo(1);
+    check(inside.b.caretChar() == 1, "click inside compound punctuation keeps its position");
+    inside.type("A");
+    check_eq(inside.preedit(), "…A…你", "literal compound can be edited between graphemes");
+}
+
+void test_converted_deletion_preserves_text() {
+    for (const auto &keys : {"140", "240", "su3", "1j4"}) {
+        Sim s;
+        s.type("su3cl3");
+        const auto prefix = s.preedit();
+        s.type(keys);
+        check(s.preedit() != prefix, "deletion fixture appends a converted syllable");
+        s.key(FcitxKey_BackSpace);
+        check_eq(s.preedit(), prefix, "deleting conversion preserves previous Chinese exactly");
+        s.type("cl3");
+        check_eq(s.preedit(), prefix + "好", "Chinese input continues after deleting conversion");
+    }
+    Sim pending;
+    pending.type("su3cl");
+    pending.key(FcitxKey_BackSpace);
+    check_eq(pending.preedit(), "你c", "unfinished syllable still deletes a raw key");
+
+    Sim middle;
+    middle.type("su3cl3");
+    middle.key(FcitxKey_Left);
+    middle.type("140");
+    middle.key(FcitxKey_BackSpace);
+    check_eq(middle.preedit(), "你好", "deleting converted insertion preserves parked suffix");
+    check(middle.b.caretChar() == 1, "caret remains before suffix after converted deletion");
 }
 
 void test_paste_grapheme_editing() {
@@ -3253,6 +3306,8 @@ int main() {
     test_forced_english_persists_across_reset();
     test_forced_english_caret_editing();
     test_backspace();
+    test_converted_deletion_preserves_text();
+    test_mouse_caret_compound_cells();
     test_phrase_priority();
     test_forward_phrase_recommendation();
     test_live_candidate_preview();

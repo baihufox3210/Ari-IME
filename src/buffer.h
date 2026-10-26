@@ -194,7 +194,7 @@ private:
     // while punctuation cells can use Ari's dedicated symbol candidate list.
     struct Cell {
         bool chinese = false;
-        std::string text;    // the displayed character (one codepoint)
+        std::string text;    // displayed text: one Chinese character or a literal cluster/mark
         std::string reading; // canonical 注音 keys; trailing ' ' marks 一聲
         std::string typed{}; // keys as actually typed, in input order (may be
                              // out of canonical order); empty = use reading

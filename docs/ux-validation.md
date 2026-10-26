@@ -219,3 +219,25 @@ classicui.h（PreferTextIcon）、inputwindow.cpp（候選內容寬度與 highli
 https://github.com/quickshell-mirror/quickshell/blob/master/src/core/iconimageprovider.cpp
 https://github.com/quickshell-mirror/quickshell/blob/master/src/services/status_notifier/item.cpp
 https://github.com/qt/qtbase/blob/6.10/src/gui/image/qicon.cpp
+
+## 2026-10-26：四字門檻、轉換後刪字與複合標點游標
+
+- 使用者澄清「多一個字」是加寬門檻 3→4，留白仍為一個全形字寬。
+  預期 4 字加寬、5 字不加寬；直排與橫排邊界測試通過。
+- 先新增刪除與滑鼠回歸，原版出現 12 個失敗：140/240 轉成中文後 Backspace
+  還原英文字母、句中刪除留下原始鍵、點擊複合省略號後插入錯位。
+- Backspace 現先保留已轉換文字的實際顯示結果，再刪除一個中文字；保留其餘
+  文字及讀音資料供後續選字／學習。不改變尚未轉換音節逐鍵刪除的規則。
+- 原 moveCaretTo 將 grapheme 索引直接當作 cell 索引；遇「……你」時，點擊句尾
+  可讓 caretPos 超過 vector 大小。現按每格實際 grapheme 數映射，必要時拆開
+  多 grapheme 的純文字格，保持 ZWJ emoji／組合字完整。
+- Buffer 回歸通過：逆序音節、聲調提前、保留既有中文、繼續中文輸入、
+  句中插入／刪除、複合標點中間與句尾點擊。buffer 耗時 25.92 秒。
+- 原生 Fcitx 測試確認複合標點點擊後的 UTF-8 caret、Right、Backspace 與
+  已轉換文字刪除後的前端 preedit；engine 通過（0.89 秒）。
+- engine 測試新增全形標點設定時，最初觸發尚未初始化的桌面通知 factory 斷言；
+  gdb 確認為 showCustomInputMethodInformation 路徑。測試現先同步 context 的選項，
+  避免在無桌面 fixture 中啟動通知；實際鍵盤／點擊處理仍由引擎執行。
+- apply_theme、converter 也通過，4 組檢查均已通過。
+- 僅修復可重現的游標索引錯誤。尚待使用者提供其他問題應用程式與按鍵序列，
+  不將 headless preedit 測試視為所有應用程式的游標繪製已驗證。

@@ -43,12 +43,16 @@ int main() {
     const auto shortRows = ari_ime::candidateDisplayTexts({"你", "輸入法", "智慧輸入"}, false);
     test::check_eq(shortRows[0], "你\u3000", "one-character candidate gets one em");
     test::check_eq(shortRows[1], "輸入法\u3000", "three-character candidate gets one em");
-    test::check_eq(shortRows[2], "智慧輸入", "four-character candidate is not widened");
+    test::check_eq(shortRows[2], "智慧輸入\u3000", "four-character candidate is widened once");
+    test::check_eq(ari_ime::candidateDisplayTexts({"智慧輸入法"}, false)[0],
+                    "智慧輸入法", "five-character candidate is not widened");
     const auto shortLine = ari_ime::candidateDisplayTexts({"你", "你好"}, true);
     test::check_eq(shortLine[0], "你", "row padding never affects earlier candidates");
     test::check_eq(shortLine[1], "你好\u3000", "three-character horizontal row padded once");
     const auto longLine = ari_ime::candidateDisplayTexts({"你好", "世界"}, true);
-    test::check_eq(longLine[1], "世界", "four-character horizontal row is not widened");
+    test::check_eq(longLine[1], "世界\u3000", "four-character horizontal row is widened once");
+    test::check_eq(ari_ime::candidateDisplayTexts({"你好", "輸入法"}, true)[1],
+                    "輸入法", "five-character horizontal row is not widened");
     test::check(ari_ime::candidateDisplayTexts({}, true).empty(), "empty candidate list remains empty");
     test::check_eq(ari_ime::candidateDisplayTexts({"👩‍💻你好"}, false)[0], "👩‍💻你好\u3000",
                     "candidate width counts graphemes rather than UTF-8 bytes");
@@ -132,7 +136,7 @@ int main() {
         test::check(rendered && rendered->size() == static_cast<int>(shown.size()),
                     "page update reaches native candidate list");
         if (rendered && !shown.empty())
-            test::check_eq(rendered->candidate(0).text().toString(), shown.front() + (ari_ime::unicode::graphemeCount(shown.front()) <= 3 ? "\u3000" : ""),
+            test::check_eq(rendered->candidate(0).text().toString(), shown.front() + (ari_ime::unicode::graphemeCount(shown.front()) <= 4 ? "\u3000" : ""),
                             "native page includes font-relative display padding");
     }
     send(fcitx::Key(FcitxKey_Left));
@@ -178,6 +182,38 @@ int main() {
     test::check(menu.filtered() && ic.commits.size() == beforeClick + 1,
                 "context menu accepts composition once");
     test::check_eq(ic.commits.back(), "A👩‍💻B", "context menu preserves complete emoji text");
+    fcitx::RawConfig punctuation;
+    punctuation.setValueByPath("FullWidthPunctuation", "True");
+    engine.setConfig(punctuation);
+    // This headless instance does not initialize the desktop information
+    // popup. Align the context option before testing actual key/click dispatch.
+    state->buffer.setFullWidthPunct(true);
+    for (char c : std::string("^su3"))
+        send(fcitx::Key(static_cast<fcitx::KeySym>(c)));
+    fcitx::InvokeActionEvent compoundClick(fcitx::InvokeActionEvent::Action::LeftClick, 2, &ic);
+    engine.invokeAction(entry, compoundClick);
+    test::check(ic.inputPanel().clientPreedit().cursor() == 6,
+                "native click after compound punctuation has correct UTF-8 caret");
+    send(fcitx::Key(FcitxKey_Right));
+    test::check(ic.inputPanel().clientPreedit().cursor() == 9,
+                "Right after clicked punctuation reaches valid end");
+    send(fcitx::Key(FcitxKey_BackSpace));
+    test::check_eq(state->buffer.preeditText(), "……", "deletion after clicked end is stable");
+    test::check(ic.inputPanel().clientPreedit().cursor() == 6,
+                "deletion publishes caret after surviving punctuation");
+    send(fcitx::Key(FcitxKey_Return));
+    punctuation.setValueByPath("FullWidthPunctuation", "False");
+    engine.setConfig(punctuation);
+    state->buffer.setFullWidthPunct(false);
+    for (char c : std::string("su3cl3140"))
+        send(fcitx::Key(static_cast<fcitx::KeySym>(c)));
+    send(fcitx::Key(FcitxKey_BackSpace));
+    test::check_eq(ic.inputPanel().clientPreedit().toString(), "你好",
+                    "native Backspace never resurrects converted raw keys");
+    test::check(ic.inputPanel().clientPreedit().cursor() == 6,
+                "native deletion caret follows preserved Chinese text");
+    send(fcitx::Key(FcitxKey_Return));
+
     for (char c : std::string("su3cl3"))
         send(fcitx::Key(static_cast<fcitx::KeySym>(c)));
     send(fcitx::Key(FcitxKey_Home));
@@ -197,7 +233,7 @@ int main() {
         rowLength += ari_ime::unicode::graphemeCount(text);
     for (int i = 0; list && i < list->size(); ++i) {
         test::check_eq(list->candidate(i).text().toString(),
-                        horizontal[i] + (rowLength <= 3 && i + 1 == list->size() ? "\u3000" : ""),
+                        horizontal[i] + (rowLength <= 4 && i + 1 == list->size() ? "\u3000" : ""),
                         "horizontal layout pads only a short row, once");
     }
     if (list && list->size() > 0) {
