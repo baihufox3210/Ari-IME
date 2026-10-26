@@ -185,6 +185,9 @@ public:
     void invokeActionImpl(const fcitx::InputMethodEntry &entry,
                           fcitx::InvokeActionEvent &event) override;
 
+    std::string subModeIconImpl(const fcitx::InputMethodEntry &entry,
+                                fcitx::InputContext &ic) override;
+
     // --- Configuration (fcitx5-configtool) ---
     const fcitx::Configuration *getConfig() const override { return &config_; }
     void setConfig(const fcitx::RawConfig &config) override {

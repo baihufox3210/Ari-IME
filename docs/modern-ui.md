@@ -36,29 +36,49 @@ Esc 關閉候選並保留組字，之後 Left/Right 移動文字游標。Enter �
 已儲存 `MoveCursor` 的舊設定優先於新預設；請在 Ari 設定的
 「Left/Right in the candidate window」選「Turn candidate pages」並套用。
 
-候選顯示層在右側保留一個全形空格（U+3000）的字型寬度，讓內容與選取列一起
-變寬；不再只擴張面板外側邊界。直排每列保留一字寬，橫排只在最後一個候選後
-保留一次，不會隨候選數量重複增加。空格只存在於候選的顯示文字，不會寫入
-組字、commit 或使用者詞典。滑鼠選字使用原始候選字串驗證。
+候選顯示層只替一至三字的短候選保留一個全形空格（U+3000）的字型寬度，
+四字以上不加寬。橫排按整排候選總字數計算，超過三字不加寬；短排只在最後
+一項後保留一次。空格只存在顯示層，不寫入組字、commit 或使用者詞典。
 
-## Arch topbar 圖示
+已移除共用面板的額外右側加寬，InputPanel 和 Menu 使用對稱邊距，避免影響
+切換輸入法提示及清單。Ari 自己的中英文切換提示縮短為「中／英」。
+實際提示框由 Fcitx 按字型量測，對稱邊距不保證所有字型下外框像素恰好正方形。
 
-輸入法圖示識別改為 `ari-ime-baihu`，安裝 16、22、24、32、48、64、128 像素 PNG
-到 hicolor 主題，避免 topbar 沒有 SVG loader 或快取舊 SVG 時顯示缺圖。
-維護工具 `scripts/generate-icon-assets.py` 從既有 SVG 轉檔；一般使用者不必執行。
+## DMS + Niri topbar 圖示
 
-更新套件後 Fcitx 需要重啟以讀取新圖示識別（安裝腳本會處理）。若 Classic UI
-啟用了 Prefer Text Icon，面板可能優先使用動態文字 pixmap 而不是 Ari 圖示。
-可明確選用圖片模式：
+Quickshell 原始碼中的黑紫棋盤格是找不到圖示時的 missingPixmap。
+這與 Niri 視窗定位無直接關係。先前只驗證 Fcitx 的圖示查找成功，
+無法證明 DMS 所用的 Qt 圖示主題也能解析相同名稱。
+
+Ari 現在透過 Fcitx subModeIcon 回傳已安裝 128px PNG 的絕對路徑，讓
+DMS／Quickshell 的 QIcon::fromTheme 直接載入檔案，避開主題名稱搜尋和負快取。
+路徑由 Fcitx XDG Data 搜尋取得，支援一般系統與使用者安裝；若檔案不存在，
+退回標準 input-keyboard 圖示。SVG 及各尺寸 PNG 仍安裝供一般選單使用。
+
+更新引擎後需要重啟 Fcitx（安裝腳本會處理）。明確選用圖片模式：
 
 ```sh
 ari-ime-theme dark --font 'Sans 12' --tray-icon image
 ```
 
-這個選項會備份並調整 Classic UI 共用的 PreferTextIcon 設定；不指定就保留原值。
-套用後切換輸入法以刷新圖示，必要時重新啟動 Fcitx。`--tray-icon text` 可改回文字。
-如果仍有黑紫破圖，需要記錄 topbar 種類、桌面環境與截圖；目前沒有桌面 session，
-不能將圖片可解碼或圖示可查找到等同於實際面板已驗證。
+此選項會備份並調整共用的 PreferTextIcon 設定，不指定就保留原值。
+`--tray-icon text` 可改回文字。測試請聚焦文字欄位並切到 Ari；英文鍵盤狀態的
+圖示由 Fcitx keyboard addon 提供，不是 Ari 的 subModeIcon。
+
+若 Ari 啟用後仍有棋盤格，請在桌面終端機讀取實際 SNI IconName：
+
+```sh
+busctl --user get-property org.fcitx.Fcitx5 /StatusNotifierItem org.kde.StatusNotifierItem IconName
+```
+
+圖片模式下應為 PNG 的絕對路徑；若仍是舊名稱，先確認新模組已載入。
+若路徑正確則需保留 DMS／Quickshell 版本與日誌，進一步確認面板端渲染。
+本環境沒有 DMS/Niri session，尚不能宣稱已完成實機驗收。
+
+依據：
+- [Quickshell missingPixmap](https://github.com/quickshell-mirror/quickshell/blob/master/src/core/iconimageprovider.cpp)
+- [Quickshell SNI icon](https://github.com/quickshell-mirror/quickshell/blob/master/src/services/status_notifier/item.cpp)
+- [Qt absolute-path QIcon](https://github.com/qt/qtbase/blob/6.10/src/gui/image/qicon.cpp)
 
 ## 在 Arch 安裝這個 checkout
 

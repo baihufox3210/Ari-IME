@@ -198,3 +198,24 @@ Shell 語法與 git diff --check 通過。
 
 參考：Fcitx 5.1.23 notificationitem.cpp（IconName 與文字 pixmap 的選擇）、
 classicui.h（PreferTextIcon）、inputwindow.cpp（候選內容寬度與 highlight 計算）。
+
+## 2026-10-26：短候選寬度限制與 DMS + Niri
+
+- 使用者確認 DMS + Niri，仍見黑紫棋盤格。Quickshell 的
+  IconImageProvider::missingPixmap 明確繪製該圖案；因此改查 Qt/SNI 圖示路徑，
+  不再將 Fcitx IconTheme 找得到檔案視為 DMS 可顯示的證據。
+- 引擎 subModeIcon 現回傳 XDG Data 搜尋所得的 128px PNG 絕對路徑；
+  Qt QIcon::fromTheme 對絕對路徑直接建構 QIcon，繞過面板主題搜尋。
+  找不到已安裝資產則退回 input-keyboard。未改寫 DMS 或 Niri 設定。
+- 實際 Fcitx subModeIcon API 測試解析到隔離 XDG_DATA_HOME 的 PNG 完整路徑，通過。
+- 顯示層測試預期：1/3 字直排加一字寬，4 字不加；橫排總字數 3 加一次、4 不加；
+  ZWJ emoji 計一個 grapheme。實際全部通過，選字／commit 無顯示空格的回歸也通過。
+- 移除共用 InputPanel 額外右側加寬，面板／選單採對稱邊距；Ari 中英文提示為單字。
+  Fcitx 字型量測仍決定外框尺寸，不宣稱任意字型都達到像素級正方形。
+- 編譯及 CTest 4/4 通過（27.14 秒）。沒有 DMS/Niri 與 Qt runtime，
+  實際 topbar 顯示、切換提示尺寸仍待使用者實機確認。
+
+來源：
+https://github.com/quickshell-mirror/quickshell/blob/master/src/core/iconimageprovider.cpp
+https://github.com/quickshell-mirror/quickshell/blob/master/src/services/status_notifier/item.cpp
+https://github.com/qt/qtbase/blob/6.10/src/gui/image/qicon.cpp

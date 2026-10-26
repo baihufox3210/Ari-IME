@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <filesystem>
 #include <memory>
 #include <string>
 #include <utility>
@@ -18,6 +19,8 @@
 #include <fcitx/userinterfacemanager.h>
 
 #include "constants.h"
+#include "candidate_presentation.h"
+#include <fcitx-utils/standardpaths.h>
 #include "unicode.h"
 
 namespace {
@@ -154,6 +157,17 @@ AriImeEngine::AriImeEngine(fcitx::Instance *instance)
     reloadConfig();
 }
 
+std::string AriImeEngine::subModeIconImpl(const fcitx::InputMethodEntry &,
+                                         fcitx::InputContext &) {
+    // Quickshell may miss icons that Fcitx's own theme resolver can find.
+    // QIcon::fromTheme accepts absolute paths, bypassing the shell's theme
+    // lookup and its negative cache without modifying DMS or its settings.
+    const auto path = fcitx::StandardPaths::global().locate(
+        fcitx::StandardPathsType::Data,
+        "icons/hicolor/128x128/apps/ari-ime-baihu.png");
+    return path.empty() ? "input-keyboard" : std::filesystem::absolute(path).string();
+}
+
 ari_ime::KeyboardLayout AriImeEngine::applyConfig() {
     ari_ime::KeyboardLayout layout = *config_.keyboardLayout;
     if (!ari_ime::keyboardLayoutAvailable(layout)) {
@@ -210,17 +224,13 @@ void AriImeEngine::updateUI(fcitx::InputContext *ic, Buffer &buffer) {
             selectionKeys.emplace_back(static_cast<fcitx::KeySym>(FcitxKey_1 + i));
         }
         list->setSelectionKey(selectionKeys);
+        const auto displayed = ari_ime::candidateDisplayTexts(
+            candidates, *config_.horizontalCandidates);
         int hl = buffer.highlight();
         for (int i = 0; i < static_cast<int>(candidates.size()); ++i) {
             const std::string candidateText = candidates[i];
-            // One font-relative fullwidth blank extends the native content
-            // and highlight rectangle. In a horizontal row pad only its end.
-            // Keep the original text in the selection callback: this visual
-            // spacing must never reach the composition or user dictionary.
-            const bool pad = !*config_.horizontalCandidates ||
-                             i + 1 == static_cast<int>(candidates.size());
             list->append(std::make_unique<AriImeCandidate>(
-                candidateText + (pad ? "\u3000" : ""),
+                displayed[i],
                 [this, i, candidateText](fcitx::InputContext *ic) {
                     auto *state = ic->propertyFor(&factory_);
                     KeyResult result =
@@ -311,7 +321,7 @@ void AriImeEngine::applyResult(fcitx::InputContext *ic, Buffer &buffer,
     if (result.notifyMode) {
         showAriImeInformation(
             instance_,
-            ic, buffer.isForcedEnglish() ? "英 English" : "中 中文");
+            ic, buffer.isForcedEnglish() ? "英" : "中");
     }
     if (!result.notification.empty()) {
         showAriImeInformation(instance_, ic, result.notification);
