@@ -26,7 +26,7 @@ Ubuntu／Debian 使用者可從 [GitHub Releases](https://github.com/kaiyasi/Ari
 ari-ime-enable --make-default
 ```
 
-安裝後重新啟動 Fcitx5，並在輸入法清單選取 **Ari 智慧注音 / Ari Smart Bopomofo**。其他發行版、NixOS
+安裝後重新啟動 Fcitx5，並在輸入法清單選取 **Ari IME (baihu) / Ari IME (baihu)**。其他發行版、NixOS
 和手動建置方式請看[完整安裝說明](../README.md#install-on-arch-linux)。
 
 ## 先試三件事

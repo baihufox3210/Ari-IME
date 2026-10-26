@@ -1,6 +1,6 @@
 # Ari IME
 
-The desktop input-method name is now **Ari Smart Bopomofo / Ari 智慧注音**.
+The desktop input-method name is now **Ari IME (baihu)**.
 The `ari-ime` identifier, package and personal data paths remain compatible.
 For rounded dark/light themes, inline-only caret editing and Arch installation,
 see [the modern UI guide](docs/modern-ui.md). After installing, run

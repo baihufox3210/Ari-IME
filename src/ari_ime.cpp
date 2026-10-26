@@ -213,8 +213,14 @@ void AriImeEngine::updateUI(fcitx::InputContext *ic, Buffer &buffer) {
         int hl = buffer.highlight();
         for (int i = 0; i < static_cast<int>(candidates.size()); ++i) {
             const std::string candidateText = candidates[i];
+            // One font-relative fullwidth blank extends the native content
+            // and highlight rectangle. In a horizontal row pad only its end.
+            // Keep the original text in the selection callback: this visual
+            // spacing must never reach the composition or user dictionary.
+            const bool pad = !*config_.horizontalCandidates ||
+                             i + 1 == static_cast<int>(candidates.size());
             list->append(std::make_unique<AriImeCandidate>(
-                candidateText,
+                candidateText + (pad ? "\u3000" : ""),
                 [this, i, candidateText](fcitx::InputContext *ic) {
                     auto *state = ic->propertyFor(&factory_);
                     KeyResult result =

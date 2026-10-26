@@ -1,10 +1,10 @@
-# Ari 智慧注音：現代化組字與候選介面
+# Ari IME (baihu)：現代化組字與候選介面
 
 [深／淺色設計預覽](ui-preview.svg)（示意圖，非桌面截圖）。
 
 ## 本次調整
 
-輸入法顯示名稱改為 Ari Smart Bopomofo，繁體中文顯示 Ari 智慧注音。
+輸入法顯示名稱還原為 **Ari IME (baihu)**，中英文使用同一名稱。
 套件名、Fcitx 識別 `ari-ime`、設定與個人資料目錄保留，避免既有設定失聯。
 
 預設移除編輯時額外的整句預覽與「游標 x/y」面板；插入位置透過 client preedit
@@ -36,9 +36,29 @@ Esc 關閉候選並保留組字，之後 Left/Right 移動文字游標。Enter �
 已儲存 `MoveCursor` 的舊設定優先於新預設；請在 Ari 設定的
 「Left/Right in the candidate window」選「Turn candidate pages」並套用。
 
-深、淺主題的候選面板右側額外增加 16 個邏輯像素留白，約為 Sans 12 在
-96 DPI 下一個中文字的寬度。這是整個面板的留白，不會對每個橫排候選重複加寬。
-字型大小不同時不保證恰好一個字寬；實際縮放由 Classic UI 處理。
+候選顯示層在右側保留一個全形空格（U+3000）的字型寬度，讓內容與選取列一起
+變寬；不再只擴張面板外側邊界。直排每列保留一字寬，橫排只在最後一個候選後
+保留一次，不會隨候選數量重複增加。空格只存在於候選的顯示文字，不會寫入
+組字、commit 或使用者詞典。滑鼠選字使用原始候選字串驗證。
+
+## Arch topbar 圖示
+
+輸入法圖示識別改為 `ari-ime-baihu`，安裝 16、22、24、32、48、64、128 像素 PNG
+到 hicolor 主題，避免 topbar 沒有 SVG loader 或快取舊 SVG 時顯示缺圖。
+維護工具 `scripts/generate-icon-assets.py` 從既有 SVG 轉檔；一般使用者不必執行。
+
+更新套件後 Fcitx 需要重啟以讀取新圖示識別（安裝腳本會處理）。若 Classic UI
+啟用了 Prefer Text Icon，面板可能優先使用動態文字 pixmap 而不是 Ari 圖示。
+可明確選用圖片模式：
+
+```sh
+ari-ime-theme dark --font 'Sans 12' --tray-icon image
+```
+
+這個選項會備份並調整 Classic UI 共用的 PreferTextIcon 設定；不指定就保留原值。
+套用後切換輸入法以刷新圖示，必要時重新啟動 Fcitx。`--tray-icon text` 可改回文字。
+如果仍有黑紫破圖，需要記錄 topbar 種類、桌面環境與截圖；目前沒有桌面 session，
+不能將圖片可解碼或圖示可查找到等同於實際面板已驗證。
 
 ## 在 Arch 安裝這個 checkout
 

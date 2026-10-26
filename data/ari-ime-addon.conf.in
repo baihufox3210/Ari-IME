@@ -1,6 +1,6 @@
 [Addon]
-Name=Ari Smart Bopomofo
-Name[zh_TW]=Ari 智慧注音
+Name=Ari IME (baihu)
+Name[zh_TW]=Ari IME (baihu)
 Comment=Smart mixed Bopomofo/English input method (no mode switching)
 Category=InputMethod
 Version=@PROJECT_VERSION@

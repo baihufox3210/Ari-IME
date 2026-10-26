@@ -178,3 +178,23 @@ Shell 語法與 git diff --check 通過。
   桌面實際寬度、縮放仍需使用者驗收。
 - 編譯通過，CTest 4/4 通過（27.22 秒）。
 - 游標停滯回報仍待具體應用程式、桌面環境及觸發操作；本次未宣稱修復。
+
+## 2026-10-26：候選內容加寬、Ari IME (baihu) 與 topbar 圖示
+
+- 使用者回報外側留白沒有達成預期。保留既有外側留白，另在候選顯示層新增一個
+  U+3000 字寬；直排每列加一次，橫排只在整排最後加一次。
+- 預期內容／選取列一起增加寬度；Pango Sans 12 實測「你」17→33px、
+  「你好」34→50px。此為排版函式量測，尚非真實桌面截圖。
+- 預期顯示空格不寫入組字；實際 engine 滑鼠選字測試通過，並檢查翻頁顯示
+  與橫排僅加一次。CTest 4/4 通過（27.28 秒）。
+- 顯示名稱改回 Ari IME，註明 baihu。中英文為 Ari IME (baihu)。
+- 圖示切換到 PNG-only 名稱 ari-ime-baihu，包含 16/22/24/32/48/64/128px；
+  staged install 全數安裝。實際 Fcitx IconTheme API 在 1x/2x 共 14 組查找
+  均解析到 staged PNG；64px 圖示已目視確認。
+- 新增可選 `--tray-icon image`，避免 PreferTextIcon 繼續使用動態文字 pixmap。
+  預期不指定時保留舊設定，指定時切換共用偏好；Python 11/11 通過。
+- 沒有 GNOME/KDE/Waybar session，無法宣稱 Arch topbar 的黑紫破圖已實機修復。
+  待使用者更新後記錄面板種類、實際圖示與寬度。先前游標停滯仍待具體應用回報。
+
+參考：Fcitx 5.1.23 notificationitem.cpp（IconName 與文字 pixmap 的選擇）、
+classicui.h（PreferTextIcon）、inputwindow.cpp（候選內容寬度與 highlight 計算）。

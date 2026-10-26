@@ -46,12 +46,16 @@ def theme_exists(name):
     return any((root / 'fcitx5/themes' / name / 'theme.conf').is_file() for root in roots)
 
 
-def apply_theme(mode, path, font=None, dry_run=False):
+def apply_theme(mode, path, font=None, dry_run=False, tray_icon=None):
     options = {
         'Theme': 'ari-dark' if mode == 'dark' else 'ari-light',
         'DarkTheme': 'ari-dark',
         'UseDarkTheme': 'True' if mode == 'auto' else 'False',
     }
+    if tray_icon is not None:
+        if tray_icon not in ('image', 'text'):
+            raise ValueError('Tray icon must be image or text')
+        options['PreferTextIcon'] = 'True' if tray_icon == 'text' else 'False'
     if font is not None:
         if not font.strip() or '\n' in font or '\r' in font:
             raise ValueError('Font must be a non-empty single line')
@@ -147,6 +151,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('mode', choices=('dark', 'light', 'auto'))
     parser.add_argument('--font', help='Optional Fcitx font, e.g. "Sans 12"')
+    parser.add_argument('--tray-icon', choices=('image', 'text'),
+                        help='Optional shared Classic UI tray icon preference')
     parser.add_argument('--dry-run', action='store_true')
     parser.add_argument('--no-reload', action='store_true')
     args = parser.parse_args()
@@ -158,13 +164,16 @@ def main():
     config = Path(os.environ.get('XDG_CONFIG_HOME') or Path.home() / '.config')
     path = config / 'fcitx5/conf/classicui.conf'
     try:
-        backup = apply_theme(args.mode, path, args.font, args.dry_run)
+        backup = apply_theme(args.mode, path, args.font, args.dry_run, args.tray_icon)
     except (OSError, ValueError) as error:
         parser.exit(1, f'ari-ime-theme: {error}\n')
     if args.dry_run:
         return
     print('Classic UI theme:', args.mode)
     print('This applies to all input methods using Fcitx Classic UI.')
+    if args.tray_icon:
+        print('Shared tray icon preference:', args.tray_icon)
+        print('Switch input methods or restart Fcitx5 to refresh the tray icon.')
     if backup:
         print('Previous configuration:', backup)
     if args.no_reload:

@@ -65,6 +65,18 @@ class ThemeTests(unittest.TestCase):
             theme.apply_theme('auto', path, 'Sans 12')
             self.assertEqual(path.read_text(), 'Theme=ari-light\nDarkTheme=ari-dark\nUseDarkTheme=True\nFont=Sans 12\n')
 
+    def test_tray_icon_preference_changes_only_when_requested(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'classicui.conf'
+            path.write_text('PreferTextIcon=True\nTrayFont=Sans Bold 11\n')
+            theme.apply_theme('dark', path)
+            self.assertIn('PreferTextIcon=True', path.read_text())
+            theme.apply_theme('dark', path, tray_icon='image')
+            self.assertIn('PreferTextIcon=False', path.read_text())
+            self.assertIn('TrayFont=Sans Bold 11', path.read_text())
+            theme.apply_theme('dark', path, tray_icon='text')
+            self.assertIn('PreferTextIcon=True', path.read_text())
+
     def test_dry_run_and_invalid_font_do_not_write(self):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / 'missing' / 'classicui.conf'
@@ -110,10 +122,13 @@ class ThemeTests(unittest.TestCase):
             installed = Path(folder) / 'data/fcitx5/themes/ari-dark'
             installed.mkdir(parents=True)
             (installed / 'theme.conf').write_text('[Metadata]\nName=Ari Dark\n')
-            result = subprocess.run([sys.executable, str(SCRIPT), 'dark', '--no-reload'],
+            result = subprocess.run([sys.executable, str(SCRIPT), 'dark', '--no-reload',
+                                     '--tray-icon', 'image'],
                                     env=env, capture_output=True, text=True)
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertIn('Theme=ari-dark', (Path(folder) / 'config/fcitx5/conf/classicui.conf').read_text())
+            saved = (Path(folder) / 'config/fcitx5/conf/classicui.conf').read_text()
+            self.assertIn('Theme=ari-dark', saved)
+            self.assertIn('PreferTextIcon=False', saved)
 
 
 if __name__ == '__main__':

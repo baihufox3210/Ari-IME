@@ -110,8 +110,8 @@ int main() {
         test::check(rendered && rendered->size() == static_cast<int>(shown.size()),
                     "page update reaches native candidate list");
         if (rendered && !shown.empty())
-            test::check_eq(rendered->candidate(0).text().toString(), shown.front(),
-                            "native page contains new candidates");
+            test::check_eq(rendered->candidate(0).text().toString(), shown.front() + "\u3000",
+                            "native page includes font-relative display padding");
     }
     send(fcitx::Key(FcitxKey_Left));
     test::check(state->buffer.candidatePage() == pages && state->buffer.isPicking(),
@@ -169,11 +169,29 @@ int main() {
     test::check(list && list->layoutHint() == fcitx::CandidateLayoutHint::Horizontal,
                 "horizontal candidate setting reaches frontend");
     test::check(!ic.inputPanel().auxUp().empty(), "compatibility preview can be enabled");
+    const auto horizontal = state->buffer.candidates();
+    for (int i = 0; list && i < list->size(); ++i) {
+        test::check_eq(list->candidate(i).text().toString(),
+                        horizontal[i] + (i + 1 == list->size() ? "\u3000" : ""),
+                        "horizontal layout pads the row only once");
+    }
+    if (list && list->size() > 0) {
+        const auto commitsBeforePick = ic.commits.size();
+        list->candidate(0).select(&ic);
+        test::check(ic.commits.size() == commitsBeforePick,
+                    "mouse selection keeps the sentence uncommitted");
+        test::check(state->buffer.preeditText().find("\u3000") == std::string::npos,
+                    "display padding is never inserted by mouse selection");
+        send(fcitx::Key(FcitxKey_Down));
+    }
+
     appearance.setValueByPath("HorizontalCandidates", "False");
     appearance.setValueByPath("ShowEditingPreview", "False");
     engine.setConfig(appearance);
     send(fcitx::Key(FcitxKey_Escape));
     send(fcitx::Key(FcitxKey_Return));
+    test::check(!ic.commits.empty() && ic.commits.back().find("\u3000") == std::string::npos,
+                "committed sentence never contains candidate display padding");
     // Clients without inline-preedit capability must still see their text.
     ic.setCapabilityFlags({fcitx::CapabilityFlag::SurroundingText});
     send(fcitx::Key(FcitxKey_s));

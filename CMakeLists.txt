@@ -173,6 +173,12 @@ install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/data/ari-ime.svg"
     DESTINATION "${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps"
 )
 
+# Status bars may not have an SVG loader. Use a distinct PNG-only icon name
+# so old SVG/icon-theme caches cannot shadow the raster fallback.
+install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/data/icons/"
+    DESTINATION "${CMAKE_INSTALL_DATADIR}/icons/hicolor"
+    FILES_MATCHING PATTERN "*.png")
+
 # Classic UI owns popup positioning, per-output scale and screen boundaries.
 # Theme installation never changes the user's global Classic UI preferences.
 install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/data/themes/ari-dark"
