@@ -60,8 +60,7 @@ commit 或使用者詞典。
 
 已定位 Zed 的 Wayland backend 丟棄 preedit cursor 欄位，更新 marked text 時
 也未提供選取位置。單純更新 Ari 無法讓既有 Zed 讀取這些位置。
-已提供 [Zed 修正補丁與驗證步驟](../contrib/zed/README.md)，需要編譯修正後的 Zed。
-補丁已檢查可套用，UTF-8→UTF-16 轉換的 Rust 測試通過；整個 Zed 尚未編譯／桌面驗收。
+Zed 的游標修正改由獨立 fork 處理，Ari 專案不再附帶或維護 Zed 補丁。
 
 ## DMS + Niri topbar 圖示
 
